@@ -232,47 +232,19 @@ class MonitorSnapshot {
   const MonitorSnapshot({
     required this.id,
     required this.description,
-    required this.capabilities,
-    required this.capabilitiesData,
-    required this.features,
-    required this.unknownFeatures,
-    this.horizontalFrequency,
-    this.verticalFrequency,
-    this.errorMessage,
   });
 
   final String id;
   final String description;
-  final String? capabilities;
-  final ParsedCapabilities? capabilitiesData;
-  final List<MonitorFeatureState> features;
-  final List<MonitorFeatureState> unknownFeatures;
-  final int? horizontalFrequency;
-  final int? verticalFrequency;
-  final String? errorMessage;
 
   /// 返回一个带局部字段覆盖的新快照，便于状态管理层做增量更新。
   MonitorSnapshot copyWith({
     String? id,
     String? description,
-    String? capabilities,
-    ParsedCapabilities? capabilitiesData,
-    List<MonitorFeatureState>? features,
-    List<MonitorFeatureState>? unknownFeatures,
-    int? horizontalFrequency,
-    int? verticalFrequency,
-    String? errorMessage,
   }) {
     return MonitorSnapshot(
       id: id ?? this.id,
       description: description ?? this.description,
-      capabilities: capabilities ?? this.capabilities,
-      capabilitiesData: capabilitiesData ?? this.capabilitiesData,
-      features: features ?? this.features,
-      unknownFeatures: unknownFeatures ?? this.unknownFeatures,
-      horizontalFrequency: horizontalFrequency ?? this.horizontalFrequency,
-      verticalFrequency: verticalFrequency ?? this.verticalFrequency,
-      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 }

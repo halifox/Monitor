@@ -1,12 +1,9 @@
 import 'dart:ffi' as ffi;
-import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
 import 'capabilities_parser.dart';
-import 'ddcci_service.dart';
 import 'models.dart';
-import 'vcp_catalog.dart';
 
 final class Rect extends ffi.Struct {
   @ffi.Int32()
@@ -76,7 +73,7 @@ typedef _GetTimingReportDart = int Function(int hMonitor, ffi.Pointer<McTimingRe
 typedef _GetLastErrorNative = ffi.Uint32 Function();
 typedef _GetLastErrorDart = int Function();
 
-class WindowsDdcCiService implements DdcCiService {
+class WindowsDdcCiService {
   WindowsDdcCiService();
 
   static final ffi.DynamicLibrary _user32 = ffi.DynamicLibrary.open('user32.dll');
@@ -97,8 +94,6 @@ class WindowsDdcCiService implements DdcCiService {
   final _GetTimingReportDart _getTimingReport = _dxva2.lookupFunction<_GetTimingReportNative, _GetTimingReportDart>('GetTimingReport');
   final _GetLastErrorDart _getLastError = _kernel32.lookupFunction<_GetLastErrorNative, _GetLastErrorDart>('GetLastError');
 
-  final Map<String, _MonitorHandle> _openMonitors = <String, _MonitorHandle>{};
-
   static final ffi.Pointer<ffi.NativeFunction<_MonitorEnumProcNative>> _monitorEnumCallback = ffi.Pointer.fromFunction<_MonitorEnumProcNative>(_monitorEnumProc, 0);
 
   static List<int>? _enumCollector;
@@ -114,6 +109,8 @@ class WindowsDdcCiService implements DdcCiService {
     return 1;
   }
 
+  final List<RawPhysicalMonitor> monitors = [];
+
   /*
    * 枚举当前系统中可访问的物理显示器，并返回每台显示器的快照信息。
    *
@@ -126,49 +123,18 @@ class WindowsDdcCiService implements DdcCiService {
    * 如果没有找到可用的 DDC/CI 物理显示器，会返回带错误说明的占位快照，
    * 而不是抛异常，便于上层 UI 直接展示失败原因。
    */
-  @override
-  Future<List<MonitorSnapshot>> loadMonitors() async {
-    if (!Platform.isWindows) {
-      return const <MonitorSnapshot>[MonitorSnapshot(id: 'non-windows', description: '当前平台不支持', capabilities: null, capabilitiesData: null, features: <MonitorFeatureState>[], unknownFeatures: <MonitorFeatureState>[], errorMessage: '这个版本当前只实现 Windows + dxva2.dll。')];
-    }
 
+  Future<List<RawPhysicalMonitor>> loadMonitors() async {
     _closeHandles();
     final List<int> hMonitors = _enumerateDisplayMonitors();
-    final List<MonitorSnapshot> snapshots = <MonitorSnapshot>[];
-    int monitorIndex = 0;
-
     for (final int hMonitor in hMonitors) {
-      final List<_RawPhysicalMonitor> physicalMonitors = _enumeratePhysicalMonitors(hMonitor);
+      final List<RawPhysicalMonitor> physicalMonitors = _enumeratePhysicalMonitors(hMonitor);
       for (int physicalIndex = 0; physicalIndex < physicalMonitors.length; physicalIndex++) {
-        final _RawPhysicalMonitor physicalMonitor = physicalMonitors[physicalIndex];
-        final String id = 'monitor-$monitorIndex-$physicalIndex';
-        final _MonitorHandle handle = _MonitorHandle(id: id, handle: physicalMonitor.handle, description: physicalMonitor.description);
-        _openMonitors[id] = handle;
-        snapshots.add(_snapshotForHandle(handle));
+        final RawPhysicalMonitor physicalMonitor = physicalMonitors[physicalIndex];
+        monitors.add(physicalMonitor);
       }
-      monitorIndex++;
     }
-
-    if (snapshots.isEmpty) {
-      return const <MonitorSnapshot>[MonitorSnapshot(id: 'no-monitor', description: '没有找到可用显示器', capabilities: null, capabilitiesData: null, features: <MonitorFeatureState>[], unknownFeatures: <MonitorFeatureState>[], errorMessage: '没有枚举到支持 DDC/CI 的物理显示器。请确认显示器启用了 DDC/CI，并且不在远程桌面环境下。')];
-    }
-
-    return snapshots;
-  }
-
-  /*
-   * 重新读取指定显示器的状态，并生成最新快照。
-   *
-   * 这里不会重新枚举系统显示器，只会基于当前缓存的物理显示器句柄再次读取
-   * capabilities、VCP 值和时序信息。如果句柄已经失效或尚未加载，会抛出异常。
-   */
-  @override
-  Future<MonitorSnapshot> refreshMonitor(String monitorId) async {
-    final _MonitorHandle? handle = _openMonitors[monitorId];
-    if (handle == null) {
-      throw StateError('显示器句柄不存在，请先刷新设备列表。');
-    }
-    return _snapshotForHandle(handle);
+    return monitors;
   }
 
   /*
@@ -178,10 +144,8 @@ class WindowsDdcCiService implements DdcCiService {
    * [value] 是要写入的新值。底层调用 `SetVCPFeature`，失败时会把
    * 最新 Win32 错误码带进异常消息，方便定位权限、硬件或协议问题。
    */
-  @override
-  Future<void> setFeatureValue(String monitorId, int code, int value) async {
-    final _MonitorHandle handle = _requireHandle(monitorId);
-    final int result = _setVcpFeature(handle.handle, code, value);
+  Future<void> setFeatureValue(int handle, int code, int value) async {
+    final int result = _setVcpFeature(handle, code, value);
     if (result == 0) {
       throw StateError('设置 VCP 0x${_hex(code)} 失败，Win32 错误 ${_getLastError()}.');
     }
@@ -193,10 +157,8 @@ class WindowsDdcCiService implements DdcCiService {
    * 返回值中的 `success` 表示底层读取是否成功；即使显示器不支持对应 VCP，
    * 也不会直接抛异常，而是通过 `VcpReadResult` 返回失败状态和错误码。
    */
-  @override
-  Future<VcpReadResult> readFeatureValue(String monitorId, int code) async {
-    final _MonitorHandle handle = _requireHandle(monitorId);
-    return _readVcpValue(handle.handle, code);
+  Future<VcpReadResult> readFeatureValue(int handle, int code) async {
+    return _readVcpValue(handle, code);
   }
 
   /*
@@ -205,11 +167,16 @@ class WindowsDdcCiService implements DdcCiService {
    * 底层调用 `SaveCurrentSettings`。这通常用于在修改亮度、对比度或输入源后，
    * 尝试让显示器将当前状态保存到设备本身的配置中。
    */
-  @override
-  Future<void> saveSettings(String monitorId) async {
-    final _MonitorHandle handle = _requireHandle(monitorId);
-    final int result = _saveCurrentSettings(handle.handle);
+  Future<void> saveSettings(int handle) async {
+    final int result = _saveCurrentSettings(handle);
     if (result == 0) {
+      throw StateError('保存显示器设置失败，Win32 错误 ${_getLastError()}.');
+    }
+  }
+
+  Future<void> readCapabilities(int handle) async {
+    final String? result = _readCapabilities(handle);
+    if (result == null) {
       throw StateError('保存显示器设置失败，Win32 错误 ${_getLastError()}.');
     }
   }
@@ -220,23 +187,8 @@ class WindowsDdcCiService implements DdcCiService {
    * 调用后，之前缓存的 `monitorId` 将不再可用；如果需要再次操作显示器，
    * 应重新执行 [loadMonitors] 获取新句柄。
    */
-  @override
   void dispose() {
     _closeHandles();
-  }
-
-  /*
-   * 从内部缓存中取出指定显示器句柄。
-   *
-   * 这是所有单显示器操作的统一前置校验点。若调用方传入未知 `monitorId`，
-   * 会抛出 `StateError`，提示先重新加载设备列表。
-   */
-  _MonitorHandle _requireHandle(String monitorId) {
-    final _MonitorHandle? handle = _openMonitors[monitorId];
-    if (handle == null) {
-      throw StateError('显示器句柄不存在，请先刷新设备列表。');
-    }
-    return handle;
   }
 
   /*
@@ -267,27 +219,27 @@ class WindowsDdcCiService implements DdcCiService {
    * 再分配 `PHYSICAL_MONITOR` 数组并调用 `GetPhysicalMonitorsFromHMONITOR`。
    * 失败时返回空列表，而不是抛异常，让上层继续处理其他显示器。
    */
-  List<_RawPhysicalMonitor> _enumeratePhysicalMonitors(int hMonitor) {
+  List<RawPhysicalMonitor> _enumeratePhysicalMonitors(int hMonitor) {
     final ffi.Pointer<ffi.Uint32> countPointer = calloc<ffi.Uint32>();
     try {
       final int countResult = _getNumberOfPhysicalMonitors(hMonitor, countPointer);
       if (countResult == 0) {
-        return const <_RawPhysicalMonitor>[];
+        return const <RawPhysicalMonitor>[];
       }
       final int count = countPointer.value;
       if (count == 0) {
-        return const <_RawPhysicalMonitor>[];
+        return const <RawPhysicalMonitor>[];
       }
       final ffi.Pointer<PhysicalMonitor> physicalArray = calloc<PhysicalMonitor>(count);
       try {
         final int getResult = _getPhysicalMonitorsFromHMonitor(hMonitor, count, physicalArray);
         if (getResult == 0) {
-          return const <_RawPhysicalMonitor>[];
+          return const <RawPhysicalMonitor>[];
         }
-        final List<_RawPhysicalMonitor> monitors = <_RawPhysicalMonitor>[];
+        final List<RawPhysicalMonitor> monitors = <RawPhysicalMonitor>[];
         for (int index = 0; index < count; index++) {
           final PhysicalMonitor raw = (physicalArray + index).ref;
-          monitors.add(_RawPhysicalMonitor(handle: raw.hPhysicalMonitor, description: _wcharArrayToString(raw.description)));
+          monitors.add(RawPhysicalMonitor(handle: raw.hPhysicalMonitor, description: _wcharArrayToString(raw.description)));
         }
         return monitors;
       } finally {
@@ -296,49 +248,6 @@ class WindowsDdcCiService implements DdcCiService {
     } finally {
       calloc.free(countPointer);
     }
-  }
-
-  /*
-   * 基于已经打开的物理显示器句柄构造完整的监视器快照。
-   *
-   * 快照内容包括：
-   * 1. capabilities 原始字符串及解析结果。
-   * 2. 已知 VCP 特性的支持状态、当前值和可选值。
-   * 3. capabilities 中声明但本地目录未知的额外 VCP code。
-   * 4. 当前时序信息，例如水平和垂直频率。
-   */
-  MonitorSnapshot _snapshotForHandle(_MonitorHandle handle) {
-    final String? capabilities = _readCapabilities(handle.handle);
-    ParsedCapabilities? parsed;
-    if (capabilities != null && capabilities.isNotEmpty) {
-      parsed = _parser.parse(capabilities);
-    }
-
-    final _TimingReportData? timing = _readTimingReport(handle.handle);
-    final Set<int> supportedCodes = parsed?.supportedVcpCodes ?? <int>{};
-    final Map<int, Set<int>> supportedValues = parsed?.supportedVcpValues ?? <int, Set<int>>{};
-    final Set<int> probeCodes = supportedCodes.isNotEmpty ? Set<int>.from(supportedCodes) : kKnownVcpFeatureMap.keys.toSet();
-
-    final Map<int, VcpReadResult> readResults = <int, VcpReadResult>{};
-    final List<int> sortedProbeCodes = probeCodes.toList()..sort();
-    for (final int code in sortedProbeCodes) {
-      readResults[code] = _readVcpValue(handle.handle, code);
-    }
-
-    final List<MonitorFeatureState> features = <MonitorFeatureState>[];
-    for (final VcpFeatureDefinition definition in kKnownVcpFeatures) {
-      final VcpReadResult? readResult = readResults[definition.code];
-      final bool supported = supportedCodes.isEmpty ? (readResult?.success ?? false) : supportedCodes.contains(definition.code) || (readResult?.success ?? false);
-      features.add(MonitorFeatureState(code: definition.code, definition: definition, supported: supported, supportedValues: supportedValues[definition.code] ?? <int>{}, readResult: readResult));
-    }
-
-    final List<MonitorFeatureState> unknownFeatures = <MonitorFeatureState>[];
-    final List<int> extraCodes = supportedCodes.where((int code) => !kKnownVcpFeatureMap.containsKey(code)).toList()..sort();
-    for (final int code in extraCodes) {
-      unknownFeatures.add(MonitorFeatureState(code: code, definition: null, supported: true, supportedValues: supportedValues[code] ?? <int>{}, readResult: readResults[code]));
-    }
-
-    return MonitorSnapshot(id: handle.id, description: handle.description, capabilities: capabilities, capabilitiesData: parsed, features: features, unknownFeatures: unknownFeatures, horizontalFrequency: timing?.horizontalFrequencyInHertz, verticalFrequency: timing?.verticalFrequencyInHertz);
   }
 
   /*
@@ -439,10 +348,9 @@ class WindowsDdcCiService implements DdcCiService {
    * 该方法可重复调用，用于重新加载设备前的资源回收和服务销毁。
    */
   void _closeHandles() {
-    for (final _MonitorHandle handle in _openMonitors.values) {
+    for (final handle in monitors) {
       _destroyPhysicalMonitor(handle.handle);
     }
-    _openMonitors.clear();
   }
 
   /*
@@ -453,29 +361,15 @@ class WindowsDdcCiService implements DdcCiService {
   static String _hex(int value) => value.toRadixString(16).padLeft(2, '0').toUpperCase();
 }
 
-class _RawPhysicalMonitor {
+class RawPhysicalMonitor {
   /*
    * 保存从 Win32 枚举阶段读出的原始物理显示器信息。
    *
    * [handle] 是尚未包装的物理显示器句柄，[description] 是设备返回的
    * 原始描述文本，后续会被转成内部 `_MonitorHandle` 使用。
    */
-  const _RawPhysicalMonitor({required this.handle, required this.description});
+  const RawPhysicalMonitor({required this.handle, required this.description});
 
-  final int handle;
-  final String description;
-}
-
-class _MonitorHandle {
-  /*
-   * 保存应用内部使用的显示器句柄对象。
-   *
-   * 相比 `_RawPhysicalMonitor`，这里额外携带稳定的 [id]，便于 UI 层和
-   * 服务层通过字符串标识引用同一台已打开的物理显示器。
-   */
-  const _MonitorHandle({required this.id, required this.handle, required this.description});
-
-  final String id;
   final int handle;
   final String description;
 }
