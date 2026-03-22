@@ -1,105 +1,77 @@
 import 'package:ddcci/src/ddcci/models.dart';
 import 'package:ddcci/src/ddcci/windows_ddcci.dart';
+import 'package:ddcci/src/n.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 void main() {
-  runApp(DdcCiApp());
+  runApp(ProviderScope(child: DdcCiApp()));
 }
 
-class DdcCiApp extends StatelessWidget {
+class DdcCiApp extends HookConsumerWidget {
   const DdcCiApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FluentApp(
       debugShowCheckedModeBanner: false,
       title: 'DDC/CI Control Center',
-      theme: FluentThemeData(
-        brightness: Brightness.dark,
-        accentColor: Colors.blue,
-        visualDensity: VisualDensity.compact,
-        fontFamily: 'Segoe UI',
-      ),
-      home: const HomePage(),
+      theme: FluentThemeData(brightness: Brightness.dark, accentColor: Colors.blue, visualDensity: VisualDensity.compact, fontFamily: 'Segoe UI'),
+      home: HomePage(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
+class HomePage extends HookConsumerWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  var topIndex = 0;
-  final service = WindowsDdcCiService();
-  List<MonitorSnapshot> monitors = [];
-
-  @override
-  void initState() {
-    service.loadMonitors().then((List<MonitorSnapshot> value) {
-      setState(() {
-        monitors = value;
-      });
-    });
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final topIndex = useState(0);
+    final AsyncValue<List<RawPhysicalMonitor>> value = ref.watch(loadMonitorsProvider);
     return NavigationView(
       pane: NavigationPane(
-        selected: topIndex,
-        onChanged: (index) => setState(() => topIndex = index),
-        items: monitors.map((monitor) {
-          return PaneItem(
-            icon: Icon(WindowsIcons.home),
-            title: Text(monitor.description),
-            body: VpsPage(service, monitor),
-          );
-        }).toList(),
+        selected: topIndex.value,
+        onChanged: (index) => topIndex.value = index,
+        items: value.when(
+          data: (monitors) {
+            return monitors.map((monitor) {
+              return PaneItem(icon: Icon(WindowsIcons.home), title: Text(monitor.description), body: VpsPage(monitor));
+            }).toList();
+          },
+          error: (error, stackTrace) {
+            return [];
+          },
+          loading: () {
+            return [];
+          },
+        ),
         footerItems: [PaneItem(icon: Icon(WindowsIcons.settings), title: Text('Settings'), body: SettingsPage())],
       ),
     );
   }
 }
 
-class VpsPage extends StatefulWidget {
-  const VpsPage(this.service, this.monitor, {super.key});
+class VpsPage extends HookConsumerWidget {
+  const VpsPage(this.monitor, {super.key});
 
-  final WindowsDdcCiService service;
-  final MonitorSnapshot monitor;
+  final RawPhysicalMonitor monitor;
 
-  @override
-  State<VpsPage> createState() => _VpsPageState();
-}
-
-class _VpsPageState extends State<VpsPage> {
-  String? selectedColor = 'a';
-  late final service = widget.service;
-  late final monitor = widget.monitor;
-
-  @override
-  void initState() {
-    // (prot(monitor)type(LCD)model(RTK)cmds(01 02 03 07 0C E3 F3)vcp(02 04 05 06 08 0B 0C 10 12 14(01 02 04 05 06 08 0B) 16 18 1A 52 60(01 03 04 0F 10 11 12) 87 AC AE B2 B6 C6 C8 CA CC(01 02 03 04 06 0A 0D) D6(01 04 05) DF FD FF)mswhql(1)asset_eep(40)mccs_ver(2.2))
-    // (
-    // prot(monitor)
-    // type(LCD)
-    // model(RTK)
-    // cmds(01 02 03 07 0C E3 F3)
-    // vcp(02 04 05 06 08 0B 0C 10 12 14(01 02 04 05 06 08 0B) 16 18 1A 52 60(01 03 04 0F 10 11 12) 87 AC AE B2 B6 C6 C8 CA CC(01 02 03 04 06 0A 0D) D6(01 04 05) DF FD FF)
-    // mswhql(1)
-    // asset_eep(40)
-    // mccs_ver(2.2)
-    // )
-    print(widget.monitor.capabilities);
-    super.initState();
-  }
+  // (prot(monitor)type(LCD)model(RTK)cmds(01 02 03 07 0C E3 F3)vcp(02 04 05 06 08 0B 0C 10 12 14(01 02 04 05 06 08 0B) 16 18 1A 52 60(01 03 04 0F 10 11 12) 87 AC AE B2 B6 C6 C8 CA CC(01 02 03 04 06 0A 0D) D6(01 04 05) DF FD FF)mswhql(1)asset_eep(40)mccs_ver(2.2))
+  // (
+  // prot(monitor)
+  // type(LCD)
+  // model(RTK)
+  // cmds(01 02 03 07 0C E3 F3)
+  // vcp(02 04 05 06 08 0B 0C 10 12 14(01 02 04 05 06 08 0B) 16 18 1A 52 60(01 03 04 0F 10 11 12) 87 AC AE B2 B6 C6 C8 CA CC(01 02 03 04 06 0A 0D) D6(01 04 05) DF FD FF)
+  // mswhql(1)
+  // asset_eep(40)
+  // mccs_ver(2.2)
+  // )
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         Expander(
@@ -108,21 +80,21 @@ class _VpsPageState extends State<VpsPage> {
           contentPadding: .zero,
           content: Column(
             children: [
-              SiderListTile(service, monitor, 0x10, '亮度'),
+              SiderListTile(monitor, 0x10, '亮度'),
               Divider(),
-              SiderListTile(service, monitor, 0x12, '对比度'),
+              SiderListTile(monitor, 0x12, '对比度'),
               Divider(),
-              SiderListTile(service, monitor, 0x62, '音量'),
+              SiderListTile(monitor, 0x62, '音量'),
               Divider(),
               Divider(),
-              FilledButtonListTile(service, monitor, 0x00, '??'),
+              // FilledButtonListTile(monitor, 0x00, '??'),
               Divider(),
-              TextListTile(service, monitor, 0xAC, 'AC'),
-              TextListTile(service, monitor, 0xAE, 'AE'),
-              TextListTile(service, monitor, 0xC0, 'C0'),
-              TextListTile(service, monitor, 0xC8, 'C8'),
-              TextListTile(service, monitor, 0xC9, 'C9'),
-              ComboBoxListTile(service, monitor, 0xCC, 'OSD语言', vcpOsdLanguage),
+              // TextListTile(monitor, 0xAC, 'AC'),
+              // TextListTile(monitor, 0xAE, 'AE'),
+              // TextListTile(monitor, 0xC0, 'C0'),
+              // TextListTile(monitor, 0xC8, 'C8'),
+              // TextListTile(monitor, 0xC9, 'C9'),
+              ComboBoxListTile(monitor, 0xCC, 'OSD语言', vcpOsdLanguage),
               Divider(),
             ],
           ),
@@ -132,102 +104,92 @@ class _VpsPageState extends State<VpsPage> {
   }
 }
 
-sealed class VcpUiState {
-  const VcpUiState();
-}
+class SiderListTile extends HookConsumerWidget {
+  const SiderListTile(this.monitor, this.code, this.title, {super.key});
 
-/// 1. 未读取
-class Loading extends VcpUiState {
-  const Loading();
-}
-
-/// 2. 成功
-class Ready extends VcpUiState {
-  final VcpReadResult result;
-
-  const Ready(this.result);
-}
-
-/// 3. 支持但读取失败
-class SupportedButFailed extends VcpUiState {
-  final VcpReadResult result;
-
-  const SupportedButFailed(this.result);
-}
-
-/// 4. 不支持
-class Unsupported extends VcpUiState {
-  const Unsupported();
-}
-
-class SiderListTile extends StatefulWidget {
-  const SiderListTile(this.service, this.monitor, this.code, this.title, {super.key});
-
-  final WindowsDdcCiService service;
-  final MonitorSnapshot monitor;
+  final RawPhysicalMonitor monitor;
   final int code;
   final String title;
 
   @override
-  State<SiderListTile> createState() => _SiderListTileState();
-}
-
-class _SiderListTileState extends State<SiderListTile> {
-  VcpUiState uiState = Loading();
-  late MonitorFeatureState feature = widget.monitor.features.firstWhere((element) => element.code == widget.code);
-
-  @override
-  void initState() {
-    try {
-      widget.service.readFeatureValue(widget.monitor.id, widget.code).then((VcpReadResult result) {
-        if (result.success) {
-          setState(() {
-            uiState = Ready(result);
-          });
-        } else if (feature.supported) {
-          setState(() {
-            uiState = SupportedButFailed(result);
-          });
-        } else {
-          setState(() {
-            uiState = Unsupported();
-          });
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = useState<int>(0);
+    final vcpReadResult = ref.watch(readFeatureValueProvider(monitor.handle, code));
+    ref.listen<AsyncValue<VcpReadResult>>(readFeatureValueProvider(monitor.handle, code), (previous, next) {
+      next.whenData((value) {
+        if (value.currentValue != null) {
+          index.value = value.currentValue!;
         }
       });
-    } catch (e) {}
+    });
 
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(WindowsIcons.home),
-      title: Text(widget.title),
-      trailing: switch (uiState) {
-        Loading() => ProgressBar(),
-        Ready(result: final result) => Slider(
-          label: '${result.currentValue?.toInt()}',
+      leading: const Icon(WindowsIcons.home),
+      title: Text(title),
+      trailing: vcpReadResult.when(
+        data: (data) => Slider(
+          label: index.value.toString(),
           min: 0,
-          max: result.maximumValue?.toDouble() ?? 100,
-          value: result.currentValue?.toDouble() ?? 0,
-          onChanged: (v) {
-            setState(() {
-              uiState = Ready(result.copyWith(currentValue: v.toInt()));
-            });
-          },
-          onChangeEnd: (v) {
-            widget.service.setFeatureValue(widget.monitor.id, widget.code, v.toInt());
+          max: data.maximumValue?.toDouble() ?? 100,
+          value: index.value.toDouble().clamp(0, (data.maximumValue ?? 100).toDouble()),
+          onChanged: (v) => index.value = v.toInt(),
+          onChangeEnd: (v) async {
+            await ref.read(windowsDdcCiServiceProvider).setFeatureValue(monitor.handle, code, v.toInt());
           },
         ),
-        SupportedButFailed() => Slider(value: 0, onChanged: null),
-        Unsupported() => Text("Unsupported"),
-      },
+        error: (err, _) => Text('Error'),
+        loading: () => const ProgressBar(),
+      ),
+    );
+  }
+}
+
+class ComboBoxListTile extends HookConsumerWidget {
+  const ComboBoxListTile(this.monitor, this.code, this.title, this.options, {super.key});
+
+  final RawPhysicalMonitor monitor;
+  final int code;
+  final String title;
+  final List<String> options;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = useState<int?>(null);
+    final parsedCapabilities = ref.watch(readCapabilitiesProvider(monitor.handle));
+    ref.listen<AsyncValue<VcpReadResult>>(readFeatureValueProvider(monitor.handle, code), (prev, next) {
+      next.whenData((v) => index.value = v.currentValue);
+    });
+
+    return ListTile(
+      leading: const Icon(WindowsIcons.home),
+      title: Text(title),
+      trailing: parsedCapabilities.when(
+        data: (caps) {
+          final supportedValues = caps.supportedVcpValues[code]?.toList() ?? [];
+          return ComboBox<int>(
+            value: index.value,
+            onChanged: (val) async {
+              if (val != null) {
+                index.value = val;
+                await ref.read(windowsDdcCiServiceProvider).setFeatureValue(monitor.handle, code, val);
+              }
+            },
+            items: supportedValues.map((val) {
+              // 容错处理：确保索引不越界
+              final label = (val >= 0 && val < options.length) ? options[val] : "Option $val";
+              return ComboBoxItem<int>(value: val, child: Text(label));
+            }).toList(),
+          );
+        },
+        error: (err, _) => const Icon(FluentIcons.error),
+        loading: () => const ProgressBar(),
+      ),
     );
   }
 }
 
 const vcpOsdLanguage = [
+  "",
   "中文（繁体）",
   "英语",
   "法语",
@@ -267,167 +229,163 @@ const vcpOsdLanguage = [
   "越南语",
 ];
 
-class ComboBoxListTile extends StatefulWidget {
-  const ComboBoxListTile(this.service, this.monitor, this.code, this.title, this.e, {super.key});
+// class ComboBoxListTile extends StatefulWidget {
+//   const ComboBoxListTile(this.service, this.monitor, this.code, this.title, this.e, {super.key});
+//
+//   final WindowsDdcCiService service;
+//   final RawPhysicalMonitor monitor;
+//   final int code;
+//   final String title;
+//   final List<String> e;
+//
+//   @override
+//   State<ComboBoxListTile> createState() => _ComboBoxListTileState();
+// }
 
-  final WindowsDdcCiService service;
-  final MonitorSnapshot monitor;
-  final int code;
-  final String title;
-  final List<String> e;
+// class _ComboBoxListTileState extends State<ComboBoxListTile> {
+//   VcpUiState uiState = Loading();
+//   late MonitorFeatureState feature = widget.monitor.features.firstWhere((element) => element.code == widget.code);
+//
+//   @override
+//   void initState() {
+//     widget.service.readFeatureValue(widget.monitor.id, widget.code).then((VcpReadResult result) {
+//       if (result.success) {
+//         uiState = Ready(result);
+//       } else {
+//         uiState = SupportedButFailed(result);
+//       }
+//       setState(() {});
+//     });
+//     super.initState();
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return ListTile(
+//       leading: Icon(WindowsIcons.home),
+//       title: Text(widget.title),
+//       trailing: switch (uiState) {
+//         Loading() => ProgressBar(),
+//         Ready(result: final result) => ComboBox<int>(
+//           value: result.currentValue,
+//           onChanged: (value) async {
+//             if (value == null) {
+//               return;
+//             }
+//             await widget.service.setFeatureValue(widget.monitor.id, widget.code, value);
+//             setState(() {
+//               uiState = Ready(result.copyWith(currentValue: value));
+//             });
+//           },
+//           items: widget.e.asMap().entries.map((e) {
+//             final code = e.key + 1;
+//             return ComboBoxItem<int>(value: code, enabled: feature.supportedValues.contains(code), child: Text(e.value));
+//           }).toList(),
+//         ),
+//         SupportedButFailed() => Text("SupportedButFailed"),
+//         Unsupported() => Text("Unsupported"),
+//       },
+//     );
+//   }
+// }
 
-  @override
-  State<ComboBoxListTile> createState() => _ComboBoxListTileState();
-}
+// class FilledButtonListTile extends StatefulWidget {
+//   const FilledButtonListTile(this.service, this.monitor, this.code, this.title, {super.key});
+//
+//   final WindowsDdcCiService service;
+//   final RawPhysicalMonitor monitor;
+//   final int code;
+//   final String title;
+//
+//   @override
+//   State<FilledButtonListTile> createState() => _FilledButtonListTileState();
+// }
 
-class _ComboBoxListTileState extends State<ComboBoxListTile> {
-  VcpUiState uiState = Loading();
-  late MonitorFeatureState feature = widget.monitor.features.firstWhere((element) => element.code == widget.code);
+// class _FilledButtonListTileState extends State<FilledButtonListTile> {
+//   VcpUiState uiState = Loading();
+//
+//   @override
+//   void initState() {
+//     try {
+//       widget.service.readFeatureValue(widget.monitor.id, widget.code).then((VcpReadResult result) {
+//         if (result.success) {
+//           setState(() {
+//             uiState = Ready(result);
+//           });
+//         } else {
+//           setState(() {
+//             uiState = SupportedButFailed(result);
+//           });
+//         }
+//       });
+//     } catch (e) {}
+//
+//     super.initState();
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return ListTile(
+//       leading: Icon(WindowsIcons.home),
+//       title: Text(widget.title),
+//       trailing: switch (uiState) {
+//         Loading() => ProgressBar(),
+//         Ready(result: final result) => FilledButton(child: Text('执行'), onPressed: () {}),
+//         SupportedButFailed() => Slider(value: 0, onChanged: null),
+//         Unsupported() => Text("Unsupported"),
+//       },
+//     );
+//   }
+// }
 
-  @override
-  void initState() {
-    widget.service.readFeatureValue(widget.monitor.id, widget.code).then((VcpReadResult result) {
-      if (result.success) {
-        uiState = Ready(result);
-      } else {
-        uiState = SupportedButFailed(result);
-      }
-      setState(() {});
-    });
-    super.initState();
-  }
+// class TextListTile extends StatefulWidget {
+//   const TextListTile(this.service, this.monitor, this.code, this.title, {super.key});
+//
+//   final WindowsDdcCiService service;
+//   final RawPhysicalMonitor monitor;
+//   final int code;
+//   final String title;
+//
+//   @override
+//   State<TextListTile> createState() => _TextListTileState();
+// }
 
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(WindowsIcons.home),
-      title: Text(widget.title),
-      trailing: switch (uiState) {
-        Loading() => ProgressBar(),
-        Ready(result: final result) => ComboBox<int>(
-          value: result.currentValue,
-          onChanged: (value) async {
-            if (value == null) {
-              return;
-            }
-            await widget.service.setFeatureValue(widget.monitor.id, widget.code, value);
-            setState(() {
-              uiState = Ready(result.copyWith(currentValue: value));
-            });
-          },
-          items: widget.e.asMap().entries.map((e) {
-            final code = e.key + 1;
-            return ComboBoxItem<int>(
-              value: code,
-              enabled: feature.supportedValues.contains(code),
-              child: Text(e.value),
-            );
-          }).toList(),
-        ),
-        SupportedButFailed() => Text("SupportedButFailed"),
-        Unsupported() => Text("Unsupported"),
-      },
-    );
-  }
-}
-
-class FilledButtonListTile extends StatefulWidget {
-  const FilledButtonListTile(this.service, this.monitor, this.code, this.title, {super.key});
-
-  final WindowsDdcCiService service;
-  final MonitorSnapshot monitor;
-  final int code;
-  final String title;
-
-  @override
-  State<FilledButtonListTile> createState() => _FilledButtonListTileState();
-}
-
-class _FilledButtonListTileState extends State<FilledButtonListTile> {
-  VcpUiState uiState = Loading();
-
-  @override
-  void initState() {
-    try {
-      widget.service.readFeatureValue(widget.monitor.id, widget.code).then((VcpReadResult result) {
-        if (result.success) {
-          setState(() {
-            uiState = Ready(result);
-          });
-        } else {
-          setState(() {
-            uiState = SupportedButFailed(result);
-          });
-        }
-      });
-    } catch (e) {}
-
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(WindowsIcons.home),
-      title: Text(widget.title),
-      trailing: switch (uiState) {
-        Loading() => ProgressBar(),
-        Ready(result: final result) => FilledButton(child: Text('执行'), onPressed: () {}),
-        SupportedButFailed() => Slider(value: 0, onChanged: null),
-        Unsupported() => Text("Unsupported"),
-      },
-    );
-  }
-}
-
-class TextListTile extends StatefulWidget {
-  const TextListTile(this.service, this.monitor, this.code, this.title, {super.key});
-
-  final WindowsDdcCiService service;
-  final MonitorSnapshot monitor;
-  final int code;
-  final String title;
-
-  @override
-  State<TextListTile> createState() => _TextListTileState();
-}
-
-class _TextListTileState extends State<TextListTile> {
-  VcpUiState uiState = Loading();
-
-  @override
-  void initState() {
-    try {
-      widget.service.readFeatureValue(widget.monitor.id, widget.code).then((VcpReadResult result) {
-        if (result.success) {
-          setState(() {
-            uiState = Ready(result);
-          });
-        } else {
-          setState(() {
-            uiState = SupportedButFailed(result);
-          });
-        }
-      });
-    } catch (e) {}
-
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(WindowsIcons.home),
-      title: Text(widget.title),
-      trailing: switch (uiState) {
-        Loading() => ProgressBar(),
-        Ready(result: final result) => Text(result.currentValue.toString()),
-        SupportedButFailed(result: final result) => Text("SupportedButFailed:${result.windowsError}"),
-        Unsupported() => Text("Unsupported"),
-      },
-    );
-  }
-}
+// class _TextListTileState extends State<TextListTile> {
+//   VcpUiState uiState = Loading();
+//
+//   @override
+//   void initState() {
+//     try {
+//       widget.service.readFeatureValue(widget.monitor.id, widget.code).then((VcpReadResult result) {
+//         if (result.success) {
+//           setState(() {
+//             uiState = Ready(result);
+//           });
+//         } else {
+//           setState(() {
+//             uiState = SupportedButFailed(result);
+//           });
+//         }
+//       });
+//     } catch (e) {}
+//
+//     super.initState();
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return ListTile(
+//       leading: Icon(WindowsIcons.home),
+//       title: Text(widget.title),
+//       trailing: switch (uiState) {
+//         Loading() => ProgressBar(),
+//         Ready(result: final result) => Text(result.currentValue.toString()),
+//         SupportedButFailed(result: final result) => Text("SupportedButFailed:${result.windowsError}"),
+//         Unsupported() => Text("Unsupported"),
+//       },
+//     );
+//   }
+// }
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
