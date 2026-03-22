@@ -2,7 +2,6 @@ import 'dart:ffi' as ffi;
 
 import 'package:ffi/ffi.dart';
 
-import 'capabilities_parser.dart';
 import 'models.dart';
 
 final class Rect extends ffi.Struct {
@@ -79,8 +78,6 @@ class WindowsDdcCiService {
   static final ffi.DynamicLibrary _user32 = ffi.DynamicLibrary.open('user32.dll');
   static final ffi.DynamicLibrary _dxva2 = ffi.DynamicLibrary.open('dxva2.dll');
   static final ffi.DynamicLibrary _kernel32 = ffi.DynamicLibrary.open('kernel32.dll');
-
-  final CapabilitiesParser _parser = const CapabilitiesParser();
 
   final _EnumDisplayMonitorsDart _enumDisplayMonitors = _user32.lookupFunction<_EnumDisplayMonitorsNative, _EnumDisplayMonitorsDart>('EnumDisplayMonitors');
   final _GetNumberOfPhysicalMonitorsDart _getNumberOfPhysicalMonitors = _dxva2.lookupFunction<_GetNumberOfPhysicalMonitorsNative, _GetNumberOfPhysicalMonitorsDart>('GetNumberOfPhysicalMonitorsFromHMONITOR');
@@ -174,11 +171,12 @@ class WindowsDdcCiService {
     }
   }
 
-  Future<void> readCapabilities(int handle) async {
+  Future<String> readCapabilities(int handle) async {
     final String? result = _readCapabilities(handle);
     if (result == null) {
       throw StateError('保存显示器设置失败，Win32 错误 ${_getLastError()}.');
     }
+    return result;
   }
 
   /*
