@@ -1,22 +1,22 @@
-import 'package:ddcci/src/ddcci/models.dart';
-import 'package:ddcci/src/ddcci/windows_ddcci.dart';
-import 'package:ddcci/src/n.dart';
+import 'package:pureddc/src/pureddc/models.dart';
+import 'package:pureddc/src/pureddc/windows_pureddc.dart';
+import 'package:pureddc/src/n.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 void main() {
-  runApp(const ProviderScope(child: DdcCiApp()));
+  runApp(const ProviderScope(child: PureDDCApp()));
 }
 
-class DdcCiApp extends HookConsumerWidget {
-  const DdcCiApp({super.key});
+class PureDDCApp extends HookConsumerWidget {
+  const PureDDCApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return FluentApp(
       debugShowCheckedModeBanner: false,
-      title: 'DDC/CI Control Center',
+      title: 'PureDDC Control Center',
       theme: FluentThemeData(brightness: Brightness.dark, accentColor: Colors.blue, visualDensity: VisualDensity.compact, fontFamily: 'Segoe UI'),
       home: const HomePage(),
     );
@@ -769,7 +769,7 @@ const Map<int, String> vcpStereoVideoModeOptions = <int, String>{
 };
 
 Future<void> _writeFeatureValue(WidgetRef ref, RawPhysicalMonitor monitor, int code, int value) async {
-  await ref.read(windowsDdcCiServiceProvider).setFeatureValue(monitor.handle, code, value);
+  await ref.read(windowsPureDDCServiceProvider).setFeatureValue(monitor.handle, code, value);
   ref.invalidate(readFeatureValueProvider(monitor.handle, code));
 }
 

@@ -72,8 +72,8 @@ typedef _GetTimingReportDart = int Function(int hMonitor, ffi.Pointer<McTimingRe
 typedef _GetLastErrorNative = ffi.Uint32 Function();
 typedef _GetLastErrorDart = int Function();
 
-class WindowsDdcCiService {
-  WindowsDdcCiService();
+class WindowsPureDDCService {
+  WindowsPureDDCService();
 
   static final ffi.DynamicLibrary _user32 = ffi.DynamicLibrary.open('user32.dll');
   static final ffi.DynamicLibrary _dxva2 = ffi.DynamicLibrary.open('dxva2.dll');

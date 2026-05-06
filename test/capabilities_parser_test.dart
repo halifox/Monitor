@@ -1,4 +1,4 @@
-import 'package:ddcci/src/ddcci/capabilities_parser.dart';
+import 'package:pureddc/src/pureddc/capabilities_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
