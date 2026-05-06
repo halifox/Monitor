@@ -9,53 +9,53 @@ part of 'n.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(windowsDdcCiService)
-final windowsDdcCiServiceProvider = WindowsDdcCiServiceProvider._();
+@ProviderFor(windowsPureDDCService)
+final windowsPureDDCServiceProvider = WindowsPureDDCServiceProvider._();
 
-final class WindowsDdcCiServiceProvider
+final class WindowsPureDDCServiceProvider
     extends
         $FunctionalProvider<
-          WindowsDdcCiService,
-          WindowsDdcCiService,
-          WindowsDdcCiService
+          WindowsPureDDCService,
+          WindowsPureDDCService,
+          WindowsPureDDCService
         >
-    with $Provider<WindowsDdcCiService> {
-  WindowsDdcCiServiceProvider._()
+    with $Provider<WindowsPureDDCService> {
+  WindowsPureDDCServiceProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'windowsDdcCiServiceProvider',
+        name: r'windowsPureDDCServiceProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$windowsDdcCiServiceHash();
+  String debugGetCreateSourceHash() => _$windowsPureDDCServiceHash();
 
   @$internal
   @override
-  $ProviderElement<WindowsDdcCiService> $createElement(
+  $ProviderElement<WindowsPureDDCService> $createElement(
     $ProviderPointer pointer,
   ) => $ProviderElement(pointer);
 
   @override
-  WindowsDdcCiService create(Ref ref) {
-    return windowsDdcCiService(ref);
+  WindowsPureDDCService create(Ref ref) {
+    return windowsPureDDCService(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(WindowsDdcCiService value) {
+  Override overrideWithValue(WindowsPureDDCService value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<WindowsDdcCiService>(value),
+      providerOverride: $SyncValueProvider<WindowsPureDDCService>(value),
     );
   }
 }
 
-String _$windowsDdcCiServiceHash() =>
-    r'b1eea1384d7a875bb9b5b0dc68e92784f0eaf72f';
+String _$windowsPureDDCServiceHash() =>
+    r'dce14fcc4e999a31bc61a62a728d914684ad45b2';
 
 @ProviderFor(capabilitiesParser)
 final capabilitiesParserProvider = CapabilitiesParserProvider._();
@@ -144,7 +144,7 @@ final class LoadMonitorsProvider
   }
 }
 
-String _$loadMonitorsHash() => r'640f425b3d828600cb189cdada9d6c6b4baffb47';
+String _$loadMonitorsHash() => r'6b225cd961ec63d26b72c2066aaadfae6f45e702';
 
 @ProviderFor(readCapabilities)
 final readCapabilitiesProvider = ReadCapabilitiesFamily._();
@@ -203,7 +203,7 @@ final class ReadCapabilitiesProvider
   }
 }
 
-String _$readCapabilitiesHash() => r'3bc699f91313eaa4868260ad4ad78f2608a3b9b0';
+String _$readCapabilitiesHash() => r'72a3de476be309485f1f06dbc4ae09a1b70c13e3';
 
 final class ReadCapabilitiesFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<ParsedCapabilities>, int> {
@@ -278,7 +278,7 @@ final class ReadFeatureValueProvider
   }
 }
 
-String _$readFeatureValueHash() => r'82aa8256bb2b0833d1868b071eda3f42f6c33fc9';
+String _$readFeatureValueHash() => r'6139c16585305dd3e777b6f40c8ef69b3bf45b77';
 
 final class ReadFeatureValueFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<VcpReadResult>, (int, int)> {
