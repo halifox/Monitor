@@ -52,7 +52,7 @@ final class LogicalMonitorsProvider
         argument: null,
         retry: null,
         name: r'logicalMonitorsProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -79,7 +79,7 @@ final class LogicalMonitorsProvider
   }
 }
 
-String _$logicalMonitorsHash() => r'e7bee6b85c7e033fae6f39365cb51e415d360056';
+String _$logicalMonitorsHash() => r'fe6c29d1c286fcd50cd0282863f0970e409a02a0';
 
 /// 物理监视器列表提供者
 ///
@@ -134,7 +134,7 @@ final class PhysicalMonitorsProvider
   }) : super(
          retry: null,
          name: r'physicalMonitorsProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -179,7 +179,7 @@ final class PhysicalMonitorsProvider
   }
 }
 
-String _$physicalMonitorsHash() => r'3a2aba2b93b546b40d4b364d51c5536d30fdfb4d';
+String _$physicalMonitorsHash() => r'7c9c979224c0db68ed63bce820841adde9bcfd54';
 
 /// 物理监视器列表提供者
 ///
@@ -203,7 +203,7 @@ final class PhysicalMonitorsFamily extends $Family
         name: r'physicalMonitorsProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// 物理监视器列表提供者
@@ -277,7 +277,7 @@ final class LogicalMonitorNameProvider
   }) : super(
          retry: null,
          name: r'logicalMonitorNameProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -323,7 +323,7 @@ final class LogicalMonitorNameProvider
 }
 
 String _$logicalMonitorNameHash() =>
-    r'9bb170e3d98e3936b3257d40291fe372c540c777';
+    r'd4422ac1acd0a3ff118b9e6d502f5e16627fcbb1';
 
 /// 逻辑监视器名称提供者
 ///
@@ -346,7 +346,7 @@ final class LogicalMonitorNameFamily extends $Family
         name: r'logicalMonitorNameProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// 逻辑监视器名称提供者
@@ -373,11 +373,12 @@ final class LogicalMonitorNameFamily extends $Family
 ///
 /// 在独立的 Isolate 中执行，避免阻塞主线程。
 /// 首先获取 Capabilities 字符串长度，然后分配缓冲区并读取完整字符串。
+/// 读取后在内部解析为结构化的 CapabilitiesInfo 对象。
 ///
 /// 参数:
 /// - [handle]: 物理监视器句柄
 ///
-/// 返回值: ASCII 格式的 Capabilities 字符串
+/// 返回值: 解析后的 CapabilitiesInfo 对象
 ///
 /// 异常: 如果读取失败则抛出 StateError
 
@@ -388,26 +389,33 @@ final monitorCapabilitiesProvider = MonitorCapabilitiesFamily._();
 ///
 /// 在独立的 Isolate 中执行，避免阻塞主线程。
 /// 首先获取 Capabilities 字符串长度，然后分配缓冲区并读取完整字符串。
+/// 读取后在内部解析为结构化的 CapabilitiesInfo 对象。
 ///
 /// 参数:
 /// - [handle]: 物理监视器句柄
 ///
-/// 返回值: ASCII 格式的 Capabilities 字符串
+/// 返回值: 解析后的 CapabilitiesInfo 对象
 ///
 /// 异常: 如果读取失败则抛出 StateError
 
 final class MonitorCapabilitiesProvider
-    extends $FunctionalProvider<AsyncValue<String>, String, FutureOr<String>>
-    with $FutureModifier<String>, $FutureProvider<String> {
+    extends
+        $FunctionalProvider<
+          AsyncValue<CapabilitiesInfo>,
+          CapabilitiesInfo,
+          FutureOr<CapabilitiesInfo>
+        >
+    with $FutureModifier<CapabilitiesInfo>, $FutureProvider<CapabilitiesInfo> {
   /// 异步读取监视器 Capabilities 字符串
   ///
   /// 在独立的 Isolate 中执行，避免阻塞主线程。
   /// 首先获取 Capabilities 字符串长度，然后分配缓冲区并读取完整字符串。
+  /// 读取后在内部解析为结构化的 CapabilitiesInfo 对象。
   ///
   /// 参数:
   /// - [handle]: 物理监视器句柄
   ///
-  /// 返回值: ASCII 格式的 Capabilities 字符串
+  /// 返回值: 解析后的 CapabilitiesInfo 对象
   ///
   /// 异常: 如果读取失败则抛出 StateError
   MonitorCapabilitiesProvider._({
@@ -416,7 +424,7 @@ final class MonitorCapabilitiesProvider
   }) : super(
          retry: null,
          name: r'monitorCapabilitiesProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -433,11 +441,12 @@ final class MonitorCapabilitiesProvider
 
   @$internal
   @override
-  $FutureProviderElement<String> $createElement($ProviderPointer pointer) =>
-      $FutureProviderElement(pointer);
+  $FutureProviderElement<CapabilitiesInfo> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
 
   @override
-  FutureOr<String> create(Ref ref) {
+  FutureOr<CapabilitiesInfo> create(Ref ref) {
     final argument = this.argument as int;
     return monitorCapabilities(ref, argument);
   }
@@ -454,40 +463,42 @@ final class MonitorCapabilitiesProvider
 }
 
 String _$monitorCapabilitiesHash() =>
-    r'dba13a33ea055cbf9e463142368519c99955b639';
+    r'd10e90e3775ae7243eae11f38200396d510addd2';
 
 /// 异步读取监视器 Capabilities 字符串
 ///
 /// 在独立的 Isolate 中执行，避免阻塞主线程。
 /// 首先获取 Capabilities 字符串长度，然后分配缓冲区并读取完整字符串。
+/// 读取后在内部解析为结构化的 CapabilitiesInfo 对象。
 ///
 /// 参数:
 /// - [handle]: 物理监视器句柄
 ///
-/// 返回值: ASCII 格式的 Capabilities 字符串
+/// 返回值: 解析后的 CapabilitiesInfo 对象
 ///
 /// 异常: 如果读取失败则抛出 StateError
 
 final class MonitorCapabilitiesFamily extends $Family
-    with $FunctionalFamilyOverride<FutureOr<String>, int> {
+    with $FunctionalFamilyOverride<FutureOr<CapabilitiesInfo>, int> {
   MonitorCapabilitiesFamily._()
     : super(
         retry: null,
         name: r'monitorCapabilitiesProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// 异步读取监视器 Capabilities 字符串
   ///
   /// 在独立的 Isolate 中执行，避免阻塞主线程。
   /// 首先获取 Capabilities 字符串长度，然后分配缓冲区并读取完整字符串。
+  /// 读取后在内部解析为结构化的 CapabilitiesInfo 对象。
   ///
   /// 参数:
   /// - [handle]: 物理监视器句柄
   ///
-  /// 返回值: ASCII 格式的 Capabilities 字符串
+  /// 返回值: 解析后的 CapabilitiesInfo 对象
   ///
   /// 异常: 如果读取失败则抛出 StateError
 
@@ -559,7 +570,7 @@ final class FeatureValueProvider
   }) : super(
          retry: null,
          name: r'featureValueProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -597,7 +608,7 @@ final class FeatureValueProvider
   }
 }
 
-String _$featureValueHash() => r'0008c4f365359a5824ba03800cb948c574ffc542';
+String _$featureValueHash() => r'd8b6e6404bd8a179c975602af139566f67c7b8a4';
 
 /// VCP 功能值读取提供者
 ///
@@ -622,7 +633,7 @@ final class FeatureValueFamily extends $Family
         name: r'featureValueProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// VCP 功能值读取提供者
@@ -737,7 +748,7 @@ final class SetFeatureValueProvider
   }
 }
 
-String _$setFeatureValueHash() => r'6aec398e0716e8132e579278fb4b70a36afb2d38';
+String _$setFeatureValueHash() => r'6bb1a27b8fc674accd059bf3fe49a8f55e1674c9';
 
 /// 设置 VCP 功能值
 ///
@@ -867,7 +878,7 @@ final class SaveMonitorSettingsProvider
 }
 
 String _$saveMonitorSettingsHash() =>
-    r'faa78828fdcb3da1515f777174faee8268b95e05';
+    r'244215ef4801c656ef3eb9f08cde22254f8d082b';
 
 /// 保存监视器设置
 ///
@@ -907,4 +918,132 @@ final class SaveMonitorSettingsFamily extends $Family
 
   @override
   String toString() => r'saveMonitorSettingsProvider';
+}
+
+/// 读取显示器 EDID 数据提供者
+///
+/// 从 Windows 注册表读取显示器的 EDID（Extended Display Identification Data）信息。
+/// EDID 包含显示器的制造商、型号、序列号、支持的分辨率等详细信息。
+///
+/// 参数:
+/// - [ref]: Riverpod 引用对象
+/// - [hMonitor]: 逻辑监视器句柄
+///
+/// 返回值: 解析后的 EdidInfo 对象，如果读取失败则返回 null
+
+@ProviderFor(monitorEdid)
+final monitorEdidProvider = MonitorEdidFamily._();
+
+/// 读取显示器 EDID 数据提供者
+///
+/// 从 Windows 注册表读取显示器的 EDID（Extended Display Identification Data）信息。
+/// EDID 包含显示器的制造商、型号、序列号、支持的分辨率等详细信息。
+///
+/// 参数:
+/// - [ref]: Riverpod 引用对象
+/// - [hMonitor]: 逻辑监视器句柄
+///
+/// 返回值: 解析后的 EdidInfo 对象，如果读取失败则返回 null
+
+final class MonitorEdidProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<EdidInfo?>,
+          EdidInfo?,
+          FutureOr<EdidInfo?>
+        >
+    with $FutureModifier<EdidInfo?>, $FutureProvider<EdidInfo?> {
+  /// 读取显示器 EDID 数据提供者
+  ///
+  /// 从 Windows 注册表读取显示器的 EDID（Extended Display Identification Data）信息。
+  /// EDID 包含显示器的制造商、型号、序列号、支持的分辨率等详细信息。
+  ///
+  /// 参数:
+  /// - [ref]: Riverpod 引用对象
+  /// - [hMonitor]: 逻辑监视器句柄
+  ///
+  /// 返回值: 解析后的 EdidInfo 对象，如果读取失败则返回 null
+  MonitorEdidProvider._({
+    required MonitorEdidFamily super.from,
+    required int super.argument,
+  }) : super(
+         retry: null,
+         name: r'monitorEdidProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$monitorEdidHash();
+
+  @override
+  String toString() {
+    return r'monitorEdidProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<EdidInfo?> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<EdidInfo?> create(Ref ref) {
+    final argument = this.argument as int;
+    return monitorEdid(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MonitorEdidProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$monitorEdidHash() => r'1081827efe2ff3cea4e1e2ac435776b3395817f8';
+
+/// 读取显示器 EDID 数据提供者
+///
+/// 从 Windows 注册表读取显示器的 EDID（Extended Display Identification Data）信息。
+/// EDID 包含显示器的制造商、型号、序列号、支持的分辨率等详细信息。
+///
+/// 参数:
+/// - [ref]: Riverpod 引用对象
+/// - [hMonitor]: 逻辑监视器句柄
+///
+/// 返回值: 解析后的 EdidInfo 对象，如果读取失败则返回 null
+
+final class MonitorEdidFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<EdidInfo?>, int> {
+  MonitorEdidFamily._()
+    : super(
+        retry: null,
+        name: r'monitorEdidProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// 读取显示器 EDID 数据提供者
+  ///
+  /// 从 Windows 注册表读取显示器的 EDID（Extended Display Identification Data）信息。
+  /// EDID 包含显示器的制造商、型号、序列号、支持的分辨率等详细信息。
+  ///
+  /// 参数:
+  /// - [ref]: Riverpod 引用对象
+  /// - [hMonitor]: 逻辑监视器句柄
+  ///
+  /// 返回值: 解析后的 EdidInfo 对象，如果读取失败则返回 null
+
+  MonitorEdidProvider call(int hMonitor) =>
+      MonitorEdidProvider._(argument: hMonitor, from: this);
+
+  @override
+  String toString() => r'monitorEdidProvider';
 }

@@ -1,4 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' show Icons;
 
 class SoftGroup extends StatelessWidget {
   const SoftGroup({required this.title, required this.children, this.initiallyExpanded = false, super.key});
@@ -10,6 +11,7 @@ class SoftGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expander(
+      leading: const Icon(Icons.widgets),
       header: Text(title),
       initiallyExpanded: initiallyExpanded,
       contentPadding: EdgeInsets.zero,
