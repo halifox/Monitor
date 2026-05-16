@@ -1,27 +1,35 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' hide Colors;
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:pureddc/src/providers.dart';
-import 'package:pureddc/src/widgets/monitor_page.dart';
+import 'package:pureddcci/src/providers.dart';
+import 'package:pureddcci/src/widgets/monitor_page.dart';
+import 'l10n/app_localizations.dart';
 
 void main() {
-  runApp(const ProviderScope(child: PureDDCApp()));
+  runApp(const ProviderScope(child: PureDDCCIApp()));
 }
 
-class PureDDCApp extends HookConsumerWidget {
-  const PureDDCApp({super.key});
+class PureDDCCIApp extends HookConsumerWidget {
+  const PureDDCCIApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return FluentApp(
       debugShowCheckedModeBanner: false,
-      title: 'PureDDC Control Center',
-      theme: FluentThemeData(
-        brightness: Brightness.dark,
-        accentColor: Colors.blue,
-        visualDensity: VisualDensity.compact,
-        fontFamily: 'Segoe UI',
-      ),
+      title: 'PureDDCCI Control Center',
+      theme: FluentThemeData(brightness: Brightness.dark, accentColor: Colors.blue, visualDensity: VisualDensity.compact, fontFamily: 'Segoe UI'),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('zh'),
+      ],
       home: const HomePage(),
     );
   }
@@ -36,44 +44,23 @@ class HomePage extends HookConsumerWidget {
     final logicalMonitors = ref.watch(logicalMonitorsProvider);
     final items = <NavigationPaneItem>[];
     for (final hMonitor in logicalMonitors) {
-      final monitorName = ref.watch(logicalMonitorNameProvider(hMonitor));
-      final physicalHandles = ref.watch(physicalMonitorsProvider(hMonitor));
       final paneItems = <NavigationPaneItem>[];
+      final physicalHandles = ref.watch(physicalMonitorsProvider(hMonitor));
       for (final physicalHandle in physicalHandles) {
-        paneItems.add(
-          PaneItem(icon: const Icon(WindowsIcons.home), title: Text(monitorName), body: MonitorPage(physicalHandle)),
-        );
+        final edidInfo = ref.watch(monitorEdidProvider(hMonitor));
+        final monitorName = edidInfo.value?.manufacturerName ?? AppLocalizations.of(context)!.unknownMonitor;
+        paneItems.add(PaneItem(icon: const Icon(Icons.monitor), title: Text(monitorName), body: MonitorPage(physicalHandle, hMonitor)));
       }
-      if (paneItems.length == 1) {
-        items.add(paneItems[0]);
+      if (paneItems.length > 1) {
+        final logicalMonitorName = ref.watch(logicalMonitorNameProvider(hMonitor));
+        items.add(PaneItemExpander(initiallyExpanded: true, icon: null, title: Text(logicalMonitorName), items: paneItems));
       } else {
-        items.add(PaneItemExpander(icon: const Icon(WindowsIcons.home), title: Text(monitorName), items: paneItems));
+        items.addAll(paneItems);
       }
     }
 
     return NavigationView(
-      pane: NavigationPane(
-        selected: selectedIndex.value,
-        onChanged: (index) => selectedIndex.value = index,
-        items: items,
-        footerItems: [
-          PaneItemAction(
-            icon: const Icon(WindowsIcons.refresh),
-            title: const Text("refresh"),
-            onTap: () => ref.invalidate(logicalMonitorsProvider),
-          ),
-          PaneItem(icon: const Icon(WindowsIcons.settings), title: const Text('Settings'), body: const SettingsPage()),
-        ],
-      ),
+      pane: NavigationPane(selected: selectedIndex.value, onChanged: (index) => selectedIndex.value = index, items: items),
     );
-  }
-}
-
-class SettingsPage extends HookConsumerWidget {
-  const SettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const Placeholder();
   }
 }

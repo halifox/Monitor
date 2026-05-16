@@ -1,4 +1,4 @@
-name: pureddc
+name: pureddcci
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -30,7 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
+  intl: ^0.20.2
   cupertino_icons: ^1.0.8
   ffi: ^2.1.4
   fluent_ui: ^4.15.0
@@ -38,6 +41,7 @@ dependencies:
   hooks_riverpod: ^3.3.1
   flutter_hooks: ^0.21.3+1
   riverpod_annotation: ^4.0.2
+  google_fonts: ^8.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -56,6 +60,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

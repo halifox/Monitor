@@ -1,24 +1,22 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:pureddc/src/constants/vcp_options.dart';
-import 'package:pureddc/src/providers.dart';
-import 'package:pureddc/src/pureddc/capabilities_parser.dart';
-import 'package:pureddc/src/widgets/control_tiles.dart';
-import 'package:pureddc/src/widgets/soft_group.dart';
+import 'package:pureddcci/src/providers.dart';
+import 'package:pureddcci/src/widgets/control_tiles.dart';
+import 'package:pureddcci/src/widgets/soft_group.dart';
+import 'package:pureddcci/l10n/app_localizations.dart';
 
 class MonitorPage extends HookConsumerWidget {
-  const MonitorPage(this.handle, {super.key});
+  const MonitorPage(this.handle, this.logicalHandle, {super.key});
 
   final int handle;
+  final int logicalHandle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final capabilities = ref.watch(monitorCapabilitiesProvider(handle));
-    final rawCapabilities = capabilities.value;
-    final Map<int, Set<int>> vcpValues = rawCapabilities != null
-        ? CapabilitiesParser.parseVcpValues(rawCapabilities)
-        : <int, Set<int>>{};
-
+    final capabilitiesAsync = ref.watch(monitorCapabilitiesProvider(handle));
+    final capabilitiesInfo = capabilitiesAsync.value;
+    final l10n = AppLocalizations.of(context)!;
     return LayoutBuilder(
       builder: (context, constraints) {
         return ScrollConfiguration(
@@ -30,274 +28,521 @@ class MonitorPage extends HookConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final asyncData = ref.watch(monitorEdidProvider(logicalHandle));
+                      return SoftGroup(
+                        title: l10n.displayIdentification,
+                        initiallyExpanded: true,
+                        children: <Widget>[
+                          StaticTextListTile(l10n.manufacturerName, asyncData, (value) => value.manufacturerName),
+                          StaticTextListTile(l10n.productCode, asyncData, (value) => value.productCode),
+                          StaticTextListTile(l10n.serialNumber, asyncData, (value) => value.serialNumber),
+                          StaticTextListTile(l10n.manufactured, asyncData, (value) => value.manufactured),
+                          StaticTextListTile(l10n.edidVersion, asyncData, (value) => value.edidVersion),
+                          StaticTextListTile(l10n.inputType, asyncData, (value) => value.inputType),
+                          StaticTextListTile(l10n.preferredTiming, asyncData, (value) => value.preferredTiming),
+                          StaticTextListTile(l10n.extensionBlocks, asyncData, (value) => value.extensionBlocks.toString()),
+                          StaticTextListTile(l10n.rawData, asyncData, (value) {
+                            String clean = value.rawData.replaceAll(RegExp(r'\s+'), '');
+                            StringBuffer sb = StringBuffer();
+                            int len = clean.length;
+                            for (int i = 0; i < len; i += 16) {
+                              int end = (i + 16 < len) ? i + 16 : len;
+                              sb.write(clean.substring(i, end));
+
+                              if (end < len) {
+                                // (i ~/ 16) 代表当前是第几个16字符块
+                                sb.write((i ~/ 16) % 2 == 0 ? ' ' : '\n');
+                              }
+                            }
+                            return sb.toString();
+                          }, style: GoogleFonts.robotoMono(fontSize: 10)),
+                          StaticTextListTile('DDC/CI', capabilitiesAsync, (value) => l10n.ddcciSupported),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
                   SoftGroup(
-                    title: 'Display Identification',
-                    initiallyExpanded: true,
+                    title: l10n.commandInterface,
                     children: <Widget>[
-                      StaticTextListTile('Manufacturer name', ''),
-                      StaticTextListTile(
-                        'Product code',
-                        rawCapabilities != null ? CapabilitiesParser.parseModel(rawCapabilities) : null,
-                      ),
-                      const PlaceholderListTile('Serial number'),
-                      const PlaceholderListTile('Manufactured'),
-                      const PlaceholderListTile('EDID version'),
-                      const PlaceholderListTile('Input type'),
-                      const PlaceholderListTile('Preferred timing'),
-                      const PlaceholderListTile('Extension blocks'),
-                      const PlaceholderListTile('Raw data'),
-                      StaticTextListTile('DDC/CI', _capabilitiesStatus(capabilities)),
+                      StaticTextListTile(l10n.capabilitiesString, capabilitiesAsync, (value) => value.rawString,style: GoogleFonts.robotoMono(fontSize: 10)),
+                      StaticTextListTile(l10n.controlCodesSupported, capabilitiesAsync, (value) => ""),
+                      StaticTextListTile(l10n.currentTiming, capabilitiesAsync, (value) => ""),
+                      StaticTextListTile(l10n.mccsCompliance, capabilitiesAsync, (value) => value.mccsVersion),
+                      StaticTextListTile(l10n.commandLineEditor, capabilitiesAsync, (value) => ""),
                     ],
                   ),
                   const SizedBox(height: 8),
                   SoftGroup(
-                    title: 'Command Interface',
-                    initiallyExpanded: true,
+                    title: l10n.displayControl,
                     children: <Widget>[
-                      StaticTextListTile('Capabilities string', rawCapabilities),
-                      StaticTextListTile('Control codes supported', _formatSupportedCodes(rawCapabilities)),
-                      const PlaceholderListTile('Current timing'),
-                      StaticTextListTile(
-                        'MCCS compliance',
-                        rawCapabilities != null ? CapabilitiesParser.parseMccsVersion(rawCapabilities) : null,
-                      ),
-                      const PlaceholderListTile('Command-line editor'),
+                      TextListTile(handle, 0xAC, l10n.horizontalFrequency, (value) => "${value.currentValue} Hz"),
+                      TextListTile(handle, 0xAE, l10n.verticalFrequency, (value) => "${(value.currentValue / 100.0).toStringAsFixed(2)} Hz"),
+                      TextListTile(handle, 0xC0, l10n.displayUsageTime, (value) => "${value.currentValue} ${l10n.hours}"),
+                      TextListTile(handle, 0xC8, l10n.displayControllerType, (value) {
+                        final v = value.currentValue;
+                        return switch (v) {
+                          0x01 => "Conexant",
+                          0x02 => "Genesis",
+                          0x03 => "Macronix",
+                          0x04 => "IDT",
+                          0x05 => "Mstar",
+                          0x06 => "Myson",
+                          0x07 => "Phillips",
+                          0x08 => "PixelWorks",
+                          0x09 => "RealTek",
+                          0x0A => "Sage",
+                          0x0B => "Silicon Image",
+                          0x0C => "SmartASIC",
+                          0x0D => "STMicroelectronics",
+                          0x0E => "Topro",
+                          0x0F => "Trumpion",
+                          0x10 => "Welltrend",
+                          0x11 => "Samsung",
+                          0x12 => "Novatek",
+                          0x13 => "STK",
+                          0x14 => "Silicon Optics",
+                          0x15 => "Texas Instruments",
+                          0x16 => "Analogix",
+                          0x17 => "Quantum Data",
+                          0x18 => "NXP Semiconductors",
+                          0x19 => "Chrontel",
+                          0x1A => "Parade Technologies",
+                          0x1B => "THine Electronics",
+                          0x1C => "Trident",
+                          0x1D => "Micros",
+                          0xFF => l10n.notDefinedManufacturer,
+                          _ => "${l10n.unknown} (0x${v.toRadixString(16).toUpperCase()})",
+                        };
+                      }),
+                      TextListTile(handle, 0xC9, l10n.displayFirmwareLevel, (value) {
+                        int rawValue = value.currentValue;
+                        int major = (rawValue >> 8) & 0xFF;
+                        int minor = rawValue & 0xFF;
+                        return "$major.$minor";
+                      }),
+                      ComboBoxListTile(handle, 0xCA, l10n.osdButtonControl, {0x01: l10n.osdDisabled, 0x02: l10n.osdEnabled, 0xFF: l10n.cannotSupplyInfo}, enabledValues: capabilitiesInfo?.vcpValues[0xCA]),
+                      ComboBoxListTile(handle, 0xCC, l10n.osdLanguage, {
+                        0x01: l10n.langChineseTraditional,
+                        0x02: l10n.langEnglish,
+                        0x03: l10n.langFrench,
+                        0x04: l10n.langGerman,
+                        0x05: l10n.langItalian,
+                        0x06: l10n.langJapanese,
+                        0x07: l10n.langKorean,
+                        0x08: l10n.langPortuguesePortugal,
+                        0x09: l10n.langRussian,
+                        0x0A: l10n.langSpanish,
+                        0x0B: l10n.langSwedish,
+                        0x0C: l10n.langTurkish,
+                        0x0D: l10n.langChineseSimplified,
+                        0x0E: l10n.langPortugueseBrazil,
+                        0x0F: l10n.langArabic,
+                        0x10: l10n.langBulgarian,
+                        0x11: l10n.langCroatian,
+                        0x12: l10n.langCzech,
+                        0x13: l10n.langDanish,
+                        0x14: l10n.langDutch,
+                        0x15: l10n.langEstonian,
+                        0x16: l10n.langFinnish,
+                        0x17: l10n.langGreek,
+                        0x18: l10n.langHebrew,
+                        0x19: l10n.langHindi,
+                        0x1A: l10n.langHungarian,
+                        0x1B: l10n.langLatvian,
+                        0x1C: l10n.langLithuanian,
+                        0x1D: l10n.langNorwegian,
+                        0x1E: l10n.langPolish,
+                        0x1F: l10n.langRomanian,
+                        0x20: l10n.langSerbian,
+                        0x21: l10n.langSlovak,
+                        0x22: l10n.langSlovenian,
+                        0x23: l10n.langThai,
+                        0x24: l10n.langUkrainian,
+                        0x25: l10n.langVietnamese,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0xCC]),
+                      ComboBoxListTile(handle, 0xD6, l10n.powerMode, {
+                        0x01: 'DPM: On, DPMS: Off',
+                        0x02: 'DPM: Off, DPMS: Standby',
+                        0x03: 'DPM: Off, DPMS: Suspend',
+                        0x04: 'DPM: Off, DPMS: Off',
+                        0x05: l10n.writeOnlyTurnOffDisplay,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0xD6]),
+                      TextListTile(handle, 0xDF, l10n.vcpVersion, (value) {
+                        int rawValue = value.currentValue;
+                        int major = (rawValue >> 8) & 0xFF;
+                        int minor = rawValue & 0xFF;
+                        return "$major.$minor";
+                      }),
                     ],
                   ),
                   const SizedBox(height: 8),
                   SoftGroup(
-                    title: 'Display control',
+                    title: l10n.presetOperations,
                     children: <Widget>[
-                      TextListTile(
-                        handle,
-                        0xAC,
-                        'Horizontal frequency',
-                        transform: (value) => "${(value.currentValue / 100.0).toStringAsFixed(2)} kHz",
-                      ),
-                      TextListTile(
-                        handle,
-                        0xAE,
-                        'Vertical frequency',
-                        transform: (value) => "${(value.currentValue / 100.0).toStringAsFixed(2)} Hz",
-                      ),
-                      TextListTile(handle, 0xC0, 'Display usage time'),
-                      TextListTile(
-                        handle,
-                        0xC8,
-                        'Display controller type',
-                        transform: (value) {
-                          final v = value.currentValue;
-                          return switch (v) {
-                            0x01 => "Intel",
-                            0x02 => "ATI/AMD",
-                            0x03 => "NVIDIA",
-                            0x04 => "3dfx",
-                            0x05 => "Matrox",
-                            0x06 => "S3 Graphics",
-                            0x07 => "Trident",
-                            0x08 => "Number Nine",
-                            0x09 => "Realtek",
-                            _ => "Unknown ($v)",
-                          };
-                        },
-                      ),
-                      TextListTile(
-                        handle,
-                        0xC9,
-                        'Display firmware level',
-                        transform: (value) {
-                          int rawValue = value.currentValue;
-                          int major = (rawValue >> 8) & 0xFF;
-                          int minor = rawValue & 0xFF;
-                          return "$major.$minor";
-                        },
-                      ),
-                      ComboBoxListTile(handle, 0xCA, 'OSD enable', vcpOsdEnableOptions, enabledValues: vcpValues[0xCA]),
-                      ComboBoxListTile(handle, 0xCC, 'OSD language', vcpOsdLanguageOptions, enabledValues: vcpValues[0xCC]),
-                      ComboBoxListTile(handle, 0xD6, 'Power mode', vcpPowerModeOptions, enabledValues: vcpValues[0xD6]),
-                      TextListTile(
-                        handle,
-                        0xDF,
-                        'VCP version',
-                        transform: (value) {
-                          int rawValue = value.currentValue;
-                          int major = (rawValue >> 8) & 0xFF;
-                          int minor = rawValue & 0xFF;
-                          return "$major.$minor";
-                        },
-                      ),
+                      ActionListTile(handle, 0x04, l10n.restoreFactoryDefaults, {0x01: l10n.restore}),
+                      ActionListTile(handle, 0x05, l10n.restoreFactoryLuminanceContrast, {0x01: l10n.restore}),
+                      ActionListTile(handle, 0x06, l10n.restoreFactoryGeometry, {0x01: l10n.restore}),
+                      ActionListTile(handle, 0x08, l10n.restoreFactoryColor, {0x01: l10n.restore}),
+                      ActionListTile(handle, 0x0A, l10n.restoreFactoryTV, {0x01: l10n.restore}),
+                      ActionListTile(handle, 0xB0, l10n.settings, {0x01: l10n.storeCurrentSettings, 0x02: l10n.restoreFactoryDefaults}),
                     ],
                   ),
                   const SizedBox(height: 8),
                   SoftGroup(
-                    title: 'Preset operations',
+                    title: l10n.geometry,
                     children: <Widget>[
-                      ActionListTile(handle, 0x04, 'Restore factory defaults'),
-                      ActionListTile(handle, 0x05, 'Restore factory luminance/contrast defaults'),
-                      ActionListTile(handle, 0x06, 'Restore factory geometry defaults'),
-                      ActionListTile(handle, 0x08, 'Restore factory color defaults'),
-                      ActionListTile(handle, 0xB0, 'Settings'),
+                      SiderListTile(handle, 0x20, l10n.horizontalPosition),
+                      SiderListTile(handle, 0x22, l10n.horizontalSize),
+                      SiderListTile(handle, 0x24, l10n.horizontalPincushion),
+                      SiderListTile(handle, 0x26, l10n.horizontalPincushionBalance),
+                      SiderListTile(handle, 0x28, l10n.horizontalConvergenceRB),
+                      SiderListTile(handle, 0x29, l10n.horizontalConvergenceMG),
+                      SiderListTile(handle, 0x2A, l10n.horizontalLinearity),
+                      SiderListTile(handle, 0x2C, l10n.horizontalLinearityBalance),
+                      SiderListTile(handle, 0x30, l10n.verticalPosition),
+                      SiderListTile(handle, 0x32, l10n.verticalSize),
+                      SiderListTile(handle, 0x34, l10n.verticalPincushion),
+                      SiderListTile(handle, 0x36, l10n.verticalPincushionBalance),
+                      SiderListTile(handle, 0x38, l10n.verticalConvergenceRB),
+                      SiderListTile(handle, 0x39, l10n.verticalConvergenceMG),
+                      SiderListTile(handle, 0x3A, l10n.verticalLinearity),
+                      SiderListTile(handle, 0x3C, l10n.verticalLinearityBalance),
+                      SiderListTile(handle, 0x40, l10n.horizontalParallelogram),
+                      SiderListTile(handle, 0x41, l10n.verticalParallelogram),
+                      SiderListTile(handle, 0x42, l10n.horizontalKeystone),
+                      SiderListTile(handle, 0x43, l10n.verticalKeystone),
+                      SiderListTile(handle, 0x44, l10n.rotation),
+                      SiderListTile(handle, 0x46, l10n.topCornerFlare),
+                      SiderListTile(handle, 0x48, l10n.topCornerHook),
+                      SiderListTile(handle, 0x4A, l10n.bottomCornerFlare),
+                      SiderListTile(handle, 0x4C, l10n.bottomCornerHook),
+                      SiderListTile(handle, 0x7A, l10n.adjustFocalPlane),
+                      SiderListTile(handle, 0x7C, l10n.adjustZoom),
+                      SiderListTile(handle, 0x7E, l10n.trapezoid),
+                      SiderListTile(handle, 0x80, l10n.keystone),
+                      ComboBoxListTile(handle, 0x82, l10n.horizontalMirror, {0x00: l10n.normalMode, 0x01: l10n.mirroredHorizontally}, enabledValues: capabilitiesInfo?.vcpValues[0x82]),
+                      ComboBoxListTile(handle, 0x84, l10n.verticalMirror, {0x00: l10n.normalMode, 0x01: l10n.mirroredVertically}, enabledValues: capabilitiesInfo?.vcpValues[0x84]),
+                      ComboBoxListTile(handle, 0x86, l10n.displayScaling, {
+                        0x01: l10n.noScaling,
+                        0x02: l10n.maxImageNoDistortion,
+                        0x03: l10n.maxVerticalNoDistortion,
+                        0x04: l10n.maxHorizontalNoDistortion,
+                        0x05: l10n.maxVerticalWithDistortion,
+                        0x06: l10n.maxHorizontalWithDistortion,
+                        0x07: l10n.linearExpansionH,
+                        0x08: l10n.linearExpansionHV,
+                        0x09: l10n.squeezeMode,
+                        0x0A: l10n.nonLinearExpansion,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x86]),
+                      SiderListTile(handle, 0x95, l10n.windowPositionTLX),
+                      SiderListTile(handle, 0x96, l10n.windowPositionTLY),
+                      SiderListTile(handle, 0x97, l10n.windowPositionBRX),
+                      SiderListTile(handle, 0x98, l10n.windowPositionBRY),
+                      ComboBoxListTile(handle, 0x99, l10n.windowControlOnOff, {
+                        0x00: l10n.noEffect,
+                        0x01: l10n.off,
+                        0x02: l10n.on,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x99]),
+                      TextListTile(handle, 0xA4, l10n.windowControlValue, (value) => "SL: ${value.currentValue & 0xFF}, SH: ${(value.currentValue >> 8) & 0xFF}"),
+                      ComboBoxListTile(handle, 0xDA, l10n.scanMode, {0x00: l10n.normalOperation, 0x01: l10n.underscan, 0x02: l10n.overscan, 0x03: l10n.widescreen}, enabledValues: capabilitiesInfo?.vcpValues[0xDA]),
                     ],
                   ),
                   const SizedBox(height: 8),
                   SoftGroup(
-                    title: 'Geometry',
+                    title: l10n.imageAdjustment,
                     children: <Widget>[
-                      SiderListTile(handle, 0x20, 'Horizontal position (phase)'),
-                      SiderListTile(handle, 0x22, 'Horizontal size'),
-                      SiderListTile(handle, 0x24, 'Horizontal pincushion'),
-                      SiderListTile(handle, 0x26, 'Horizontal pincushion balance'),
-                      SiderListTile(handle, 0x28, 'Horizontal convergence R/B'),
-                      SiderListTile(handle, 0x29, 'Horizontal convergence M/G'),
-                      SiderListTile(handle, 0x2A, 'Horizontal linearity'),
-                      SiderListTile(handle, 0x2C, 'Horizontal linearity balance'),
-                      SiderListTile(handle, 0x30, 'Vertical position (phase)'),
-                      SiderListTile(handle, 0x32, 'Vertical size'),
-                      SiderListTile(handle, 0x34, 'Vertical pincushion'),
-                      SiderListTile(handle, 0x36, 'Vertical pincushion balance'),
-                      SiderListTile(handle, 0x38, 'Vertical convergence R/B'),
-                      SiderListTile(handle, 0x39, 'Vertical convergence M/G'),
-                      SiderListTile(handle, 0x3A, 'Vertical linearity'),
-                      SiderListTile(handle, 0x3C, 'Vertical linearity balance'),
-                      SiderListTile(handle, 0x40, 'Vertical parallelogram'),
-                      SiderListTile(handle, 0x41, 'Vertical parallelogram balance'),
-                      SiderListTile(handle, 0x42, 'Horizontal keystone'),
-                      SiderListTile(handle, 0x43, 'Vertical keystone'),
-                      SiderListTile(handle, 0x44, 'Rotation'),
-                      SiderListTile(handle, 0x46, 'Top corner flare'),
-                      SiderListTile(handle, 0x48, 'Top corner hook'),
-                      SiderListTile(handle, 0x4A, 'Bottom corner flare'),
-                      SiderListTile(handle, 0x4B, 'Bottom corner hook'),
-                      ComboBoxListTile(handle, 0x82, 'Horizontal mirror (H)', vcpMirrorOptions, enabledValues: vcpValues[0x82]),
-                      ComboBoxListTile(handle, 0x84, 'Vertical mirror (V)', vcpMirrorOptions, enabledValues: vcpValues[0x84]),
-                      ComboBoxListTile(handle, 0x86, 'Display scaling', vcpDisplayScalingOptions, enabledValues: vcpValues[0x86]),
-                      const PlaceholderListTile('Window position (T,L) - 0x95'),
-                      const PlaceholderListTile('Window position (T,R) - 0x96'),
-                      const PlaceholderListTile('Window position (B,L) - 0x97'),
-                      const PlaceholderListTile('Window position (B,R) - 0x98'),
-                      ComboBoxListTile(handle, 0xDA, 'Scan mode (TV)', vcpScanModeOptions, enabledValues: vcpValues[0xDA]),
+                      TextListTile(handle, 0x0B, l10n.colorTemperatureIncrement, (value) => "${value.currentValue} K"),
+                      TextListTile(handle, 0x0C, l10n.colorTemperatureRequest, (value) => "${value.currentValue * 100 + 3000} K"),
+                      TextListTile(handle, 0x0E, l10n.clock, (value) => "${value.currentValue}"),
+                      SiderListTile(handle, 0x10, l10n.luminance),
+                      ComboBoxListTile(handle, 0x11, l10n.fleshToneEnhancement, {
+                        0x8000: l10n.offNoEnhancement,
+                        0x4000: l10n.enhancement1,
+                        0x2000: l10n.enhancement2,
+                        0x1000: l10n.demoMode,
+                        0x0800: l10n.userMode,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x11]),
+                      SiderListTile(handle, 0x12, l10n.contrast),
+                      SiderListTile(handle, 0x13, l10n.backlightControl),
+                      ComboBoxListTile(handle, 0x14, l10n.selectColorPreset, {
+                        0x01: 'sRGB',
+                        0x02: l10n.displayNative,
+                        0x03: '4000K',
+                        0x04: '5000K',
+                        0x05: '6500K',
+                        0x06: '7500K',
+                        0x07: '8200K',
+                        0x08: '9300K',
+                        0x09: '10000K',
+                        0x0A: '11500K',
+                        0x0B: 'User 1',
+                        0x0C: 'User 2',
+                        0x0D: 'User 3',
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x14]),
+                      SiderListTile(handle, 0x16, l10n.redVideoGain),
+                      SiderListTile(handle, 0x17, l10n.userColorCompensation),
+                      SiderListTile(handle, 0x18, l10n.greenVideoGain),
+                      SiderListTile(handle, 0x1A, l10n.blueVideoGain),
+                      SiderListTile(handle, 0x1C, l10n.focus),
+                      ActionListTile(handle, 0x1E, l10n.autoSetup, {0x00: l10n.disabled, 0x01: l10n.enabled, 0x02: l10n.periodic}),
+                      ActionListTile(handle, 0x1F, l10n.autoColorSetup, {0x00: l10n.disabled, 0x01: l10n.enabled, 0x02: l10n.periodic}),
+                      ComboBoxListTile(handle, 0x2E, l10n.grayScaleExpansion, {
+                        0x01: l10n.noWhiteExpansion,
+                        0x02: l10n.firstLevelExpansion,
+                        0x03: l10n.secondLevelExpansion,
+                        0x04: l10n.thirdLevelExpansion,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x2E]),
+                      SiderListTile(handle, 0x3E, l10n.clockPhase),
+                      SiderListTile(handle, 0x56, l10n.horizontalMoire),
+                      SiderListTile(handle, 0x58, l10n.verticalMoire),
+                      SiderListTile(handle, 0x59, l10n.sixAxisSaturationRed),
+                      SiderListTile(handle, 0x5A, l10n.sixAxisSaturationYellow),
+                      SiderListTile(handle, 0x5B, l10n.sixAxisSaturationGreen),
+                      SiderListTile(handle, 0x5C, l10n.sixAxisSaturationCyan),
+                      SiderListTile(handle, 0x5D, l10n.sixAxisSaturationBlue),
+                      SiderListTile(handle, 0x5E, l10n.sixAxisSaturationMagenta),
+                      SiderListTile(handle, 0x6B, l10n.backlightLevelWhite),
+                      SiderListTile(handle, 0x6C, l10n.videoBlackLevelRed),
+                      SiderListTile(handle, 0x6D, l10n.backlightLevelRed),
+                      SiderListTile(handle, 0x6E, l10n.videoBlackLevelGreen),
+                      SiderListTile(handle, 0x6F, l10n.backlightLevelGreen),
+                      SiderListTile(handle, 0x70, l10n.videoBlackLevelBlue),
+                      SiderListTile(handle, 0x71, l10n.backlightLevelBlue),
+                      ComboBoxListTile(handle, 0x72, l10n.gamma, {
+                        0x01: l10n.whiteAbsolute,
+                        0x02: l10n.redAbsolute,
+                        0x03: l10n.greenAbsolute,
+                        0x04: l10n.blueAbsolute,
+                        0x05: l10n.whiteRelative,
+                        0x06: l10n.disabled,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x72]),
+                      TextListTile(handle, 0x73, l10n.lutSize, (value) => "${value.currentValue}"),
+                      TextListTile(handle, 0x74, l10n.singlePointLutOperation, (value) => "${value.currentValue}"),
+                      TextListTile(handle, 0x75, l10n.blockLutOperation, (value) => "${value.currentValue}"),
+                      SiderListTile(handle, 0x7C, l10n.adjustZoom),
+                      SiderListTile(handle, 0x7D, l10n.whiteLedBacklightControl),
+                      SiderListTile(handle, 0x7E, l10n.redLedBacklightControl),
+                      SiderListTile(handle, 0x7F, l10n.greenLedBacklightControl),
+                      SiderListTile(handle, 0x81, l10n.blueLedBacklightControl),
+                      SiderListTile(handle, 0x87, l10n.sharpness),
+                      SiderListTile(handle, 0x88, l10n.velocityScanModulation),
+                      SiderListTile(handle, 0x8A, l10n.tvSaturation),
+                      SiderListTile(handle, 0x8E, l10n.tvContrast),
+                      SiderListTile(handle, 0x90, l10n.hue),
+                      SiderListTile(handle, 0x92, l10n.tvBlackLevelLuminance),
+                      SiderListTile(handle, 0x9A, l10n.windowBackground),
+                      SiderListTile(handle, 0x9B, l10n.sixAxisHueRed),
+                      SiderListTile(handle, 0x9C, l10n.sixAxisHueYellow),
+                      SiderListTile(handle, 0x9D, l10n.sixAxisHueGreen),
+                      SiderListTile(handle, 0x9E, l10n.sixAxisHueCyan),
+                      SiderListTile(handle, 0x9F, l10n.sixAxisHueBlue),
+                      SiderListTile(handle, 0xA0, l10n.sixAxisHueMagenta),
+                      ActionListTile(handle, 0xA2, l10n.autoSetupOnOff, {0x01: l10n.off, 0x02: l10n.on}),
+                      ComboBoxListTile(handle, 0xA5, l10n.changeSelectedWindow, {
+                        0x00: l10n.fullDisplayImageArea,
+                        0x01: l10n.window1Selected,
+                        0x02: l10n.window2Selected,
+                        0x03: l10n.window3Selected,
+                        0x04: l10n.window4Selected,
+                        0x05: l10n.window5Selected,
+                        0x06: l10n.window6Selected,
+                        0x07: l10n.window7Selected,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0xA5]),
+                      TextListTile(handle, 0xAA, l10n.screenOrientation, (value) {
+                        return switch (value.currentValue) {
+                          0x01 => l10n.degrees0,
+                          0x02 => l10n.degrees90,
+                          0x03 => l10n.degrees180,
+                          0x04 => l10n.degrees270,
+                          0xFF => l10n.cannotSupplyOrientation,
+                          _ => "${l10n.unknown} (0x${value.currentValue.toRadixString(16).toUpperCase()})",
+                        };
+                      }),
+                      NumericListTile(handle, 0xD4, l10n.stereoVideoMode),
+                      ComboBoxListTile(handle, 0xDC, l10n.displayMode, {
+                        0x00: l10n.standardDefaultMode,
+                        0x01: l10n.productivity,
+                        0x02: l10n.mixed,
+                        0x03: l10n.movie,
+                        0x04: l10n.userDefined,
+                        0x05: l10n.games,
+                        0x06: l10n.sports,
+                        0x07: l10n.professionalMode,
+                        0x08: l10n.standardIntermediatePower,
+                        0x09: l10n.standardLowPower,
+                        0x0A: l10n.demonstration,
+                        0xF0: l10n.dynamicContrast,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0xDC]),
                     ],
                   ),
                   const SizedBox(height: 8),
                   SoftGroup(
-                    title: 'Image adjustment',
+                    title: l10n.audioFunctions,
                     children: <Widget>[
-                      NumericListTile(handle, 0x0B, 'Color temperature increment'),
-                      NumericListTile(handle, 0x0C, 'Color temperature request'),
-                      NumericListTile(handle, 0x0E, 'Clock'),
-                      SiderListTile(handle, 0x10, 'Luminance'),
-                      ComboBoxListTile(handle, 0x11, 'Flash tone enhancement', vcpFlashToneEnhancementOptions, enabledValues: vcpValues[0x11]),
-                      SiderListTile(handle, 0x12, 'Contrast'),
-                      NumericListTile(handle, 0x13, 'Backlight control'),
-                      ComboBoxListTile(handle, 0x14, 'Select color preset', vcpColorPresetOptions, enabledValues: vcpValues[0x14]),
-                      SiderListTile(handle, 0x16, 'Red video gain'),
-                      const PlaceholderListTile('User color compensation - 0x17'),
-                      SiderListTile(handle, 0x18, 'Green video gain'),
-                      SiderListTile(handle, 0x1A, 'Blue video gain'),
-                      const PlaceholderListTile('Focus - 0x1C'),
-                      ComboBoxListTile(handle, 0x1F, 'Auto color setup', vcpAutoColorSetupOptions, enabledValues: vcpValues[0x1F]),
-                      const PlaceholderListTile('Gray scale expansion - 0x2E'),
-                      const PlaceholderListTile('Clock phase - 0x3E'),
-                      const PlaceholderListTile('Horizontal moire - 0x56'),
-                      const PlaceholderListTile('Vertical moire - 0x58'),
-                      const PlaceholderListTile('6 axis saturation: Red - 0x59'),
-                      const PlaceholderListTile('6 axis saturation: Yellow - 0x5A'),
-                      const PlaceholderListTile('6 axis saturation: Green - 0x5B'),
-                      const PlaceholderListTile('6 axis saturation: Cyan - 0x5C'),
-                      const PlaceholderListTile('6 axis saturation: Blue - 0x5D'),
-                      const PlaceholderListTile('6 axis saturation: Magenta - 0x5E'),
-                      SiderListTile(handle, 0x6C, 'Red video black level'),
-                      SiderListTile(handle, 0x6E, 'Green video black level'),
-                      SiderListTile(handle, 0x70, 'Blue video black level'),
-                      const PlaceholderListTile('Gamma - 0x72'),
-                      const PlaceholderListTile('LUT size - 0x73'),
-                      const PlaceholderListTile('Single point LUT operation - 0x74'),
-                      const PlaceholderListTile('Block LUT operation - 0x75'),
-                      const PlaceholderListTile('Adjust zoom - 0x7C'),
-                      const PlaceholderListTile('White LED backlight control - 0x7D'),
-                      const PlaceholderListTile('Red LED backlight control - 0x7E'),
-                      const PlaceholderListTile('Green LED backlight control - 0x7F'),
-                      const PlaceholderListTile('Blue LED backlight control - 0x81'),
-                      SiderListTile(handle, 0x87, 'Sharpness'),
-                      const PlaceholderListTile('Velocity scan modulation - 0x88'),
-                      const PlaceholderListTile('TV saturation - 0x8A'),
-                      const PlaceholderListTile('TV contrast - 0x8E'),
-                      const PlaceholderListTile('Hue - 0x90'),
-                      const PlaceholderListTile('TV black level luminance - 0x92'),
-                      const PlaceholderListTile('Window background - 0x9A'),
-                      const PlaceholderListTile('6-axis hue control Yellow - 0x9C'),
-                      const PlaceholderListTile('6-axis hue control Green - 0x9D'),
-                      const PlaceholderListTile('6-axis hue control Cyan - 0x9E'),
-                      const PlaceholderListTile('6-axis hue control Blue - 0x9F'),
-                      const PlaceholderListTile('6-axis hue control Magenta - 0xA0'),
-                      ComboBoxListTile(handle, 0xA2, 'Auto setup on/off', vcpAutoSetupOnOffOptions, enabledValues: vcpValues[0xA2]),
-                      const PlaceholderListTile('Window control - 0xA4'),
-                      const PlaceholderListTile('Window select - 0xA5'),
-                      const PlaceholderListTile('Window size - 0xA6'),
-                      const PlaceholderListTile('Window transparency - 0xA7'),
-                      const PlaceholderListTile('Screen orientation - 0xAA'),
-                      ComboBoxListTile(handle, 0xD4, 'Stereo video mode', vcpStereoVideoModeOptions, enabledValues: vcpValues[0xD4]),
-                      ComboBoxListTile(handle, 0xDC, 'Display application', vcpDisplayApplicationOptions, enabledValues: vcpValues[0xDC]),
+                      SiderListTile(handle, 0x62, l10n.speakerVolume),
+                      ComboBoxListTile(handle, 0x63, l10n.speakerSelect, {
+                        0x00: 'Front L/R',
+                        0x01: 'Side L/R',
+                        0x02: 'Rear L/R',
+                        0x03: 'Center/Subwoofer',
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x63]),
+                      SiderListTile(handle, 0x64, l10n.microphoneVolume),
+                      SiderListTile(handle, 0x8C, l10n.tvSharpness),
+                      ActionListTile(handle, 0x8D, l10n.audioMute, {0x01: l10n.mute, 0x02: l10n.unmute}),
+                      SiderListTile(handle, 0x8F, l10n.treble),
+                      SiderListTile(handle, 0x91, l10n.bass),
+                      SiderListTile(handle, 0x93, l10n.balance),
+                      ComboBoxListTile(handle, 0x94, l10n.audioProcessorMode, {
+                        0x00: l10n.speakerOffAudioNotSupported,
+                        0x01: l10n.mono,
+                        0x02: l10n.stereo,
+                        0x03: l10n.stereoExpanded,
+                        0x11: 'SRS 2.0',
+                        0x12: 'SRS 2.1',
+                        0x13: 'SRS 3.1',
+                        0x14: 'SRS 4.1',
+                        0x15: 'SRS 5.1',
+                        0x16: 'SRS 6.1',
+                        0x17: 'SRS 7.1',
+                        0x21: 'Dolby 2.0',
+                        0x22: 'Dolby 2.1',
+                        0x23: 'Dolby 3.1',
+                        0x24: 'Dolby 4.1',
+                        0x25: 'Dolby 5.1',
+                        0x26: 'Dolby 6.1',
+                        0x27: 'Dolby 7.1',
+                        0x31: 'THX 2.0',
+                        0x32: 'THX 2.1',
+                        0x33: 'THX 3.1',
+                        0x34: 'THX 4.1',
+                        0x35: 'THX 5.1',
+                        0x36: 'THX 6.1',
+                        0x37: 'THX 7.1',
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x94]),
                     ],
                   ),
                   const SizedBox(height: 8),
                   SoftGroup(
-                    title: 'Audio functions',
+                    title: l10n.dpvlFunctions,
                     children: <Widget>[
-                      SiderListTile(handle, 0x62, 'Speaker volume'),
-                      SiderListTile(handle, 0x64, 'Microphone volume'),
-                      ComboBoxListTile(handle, 0x8D, 'Audio mute', vcpMuteOptions, enabledValues: vcpValues[0x8D]),
-                      SiderListTile(handle, 0x8F, 'Treble'),
-                      SiderListTile(handle, 0x91, 'Bass'),
-                      SiderListTile(handle, 0x93, 'Balance'),
-                      ComboBoxListTile(handle, 0x94, 'Stereo mode', vcpStereoModeOptions, enabledValues: vcpValues[0x94]),
+                      TextListTile(handle, 0xB7, l10n.monitorStatus, (value) => "${value.currentValue}"),
+                      SiderListTile(handle, 0xB8, l10n.packetCount),
+                      SiderListTile(handle, 0xB9, l10n.monitorXOrigin),
+                      SiderListTile(handle, 0xBA, l10n.monitorYOrigin),
+                      SiderListTile(handle, 0xBB, l10n.headerErrorCount),
+                      SiderListTile(handle, 0xBC, l10n.bodyCrcErrorCount),
+                      SiderListTile(handle, 0xBD, l10n.clientId),
+                      ComboBoxListTile(handle, 0xBE, l10n.linkControl, {0x01: l10n.disabled, 0x02: l10n.enabled}, enabledValues: capabilitiesInfo?.vcpValues[0xBE]),
                     ],
                   ),
                   const SizedBox(height: 8),
                   SoftGroup(
-                    title: 'DPVL functions',
+                    title: l10n.miscellaneousFunctions,
                     children: <Widget>[
-                      const PlaceholderListTile('Monitor status - 0xB7'),
-                      const PlaceholderListTile('Packet count'),
-                      const PlaceholderListTile('Monitor x origin - 0xB9'),
-                      const PlaceholderListTile('Monitor y origin - 0xBA'),
-                      const PlaceholderListTile('Header error count - 0xBB'),
-                      const PlaceholderListTile('Body CRC error count - 0xBC'),
-                      const PlaceholderListTile('Client ID - 0xBD'),
-                      const PlaceholderListTile('Link shutdown is disabled'),
+                      ActionListTile(handle, 0x01, l10n.degauss, {0x01: l10n.activate}),
+                      ActionListTile(handle, 0x02, l10n.newControlValue, {0x01: l10n.reset}),
+                      ActionListTile(handle, 0x03, l10n.softControls, {0x01: l10n.reset}),
+                      TextListTile(handle, 0x52, l10n.activeControl, (value) => "VCP code 0x${value.currentValue.toRadixString(16).toUpperCase()}"),
+                      NumericListTile(handle, 0x54, l10n.performancePreservation),
+                      ComboBoxListTile(handle, 0x60, l10n.inputSource, {
+                        0x01: 'VGA-1',
+                        0x02: 'VGA-2',
+                        0x03: 'DVI-1',
+                        0x04: 'DVI-2',
+                        0x05: 'Composite video 1',
+                        0x06: 'Composite video 2',
+                        0x07: 'S-Video-1',
+                        0x08: 'S-Video-2',
+                        0x09: 'Tuner-1',
+                        0x0A: 'Tuner-2',
+                        0x0B: 'Tuner-3',
+                        0x0C: 'Component video (YPrPb/YCrCb) 1',
+                        0x0D: 'Component video (YPrPb/YCrCb) 2',
+                        0x0E: 'Component video (YPrPb/YCrCb) 3',
+                        0x0F: 'DisplayPort-1',
+                        0x10: 'DisplayPort-2',
+                        0x11: 'HDMI-1',
+                        0x12: 'HDMI-2',
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0x60]),
+                      ComboBoxListTile(handle, 0x66, l10n.ambientLightSensor, {0x01: l10n.disabled, 0x02: l10n.enabled}, enabledValues: capabilitiesInfo?.vcpValues[0x66]),
+                      TextListTile(handle, 0x76, l10n.remoteProcedureCall, (value) => "${value.currentValue}"),
+                      ActionListTile(handle, 0x78, l10n.displayIdentificationOperation, {0x01: l10n.readEdidBlock}),
+                      ActionListTile(handle, 0x8B, l10n.tvChannelUpDown, {0x01: l10n.increment, 0x02: l10n.decrement}),
+                      TextListTile(handle, 0xB2, l10n.flatPanelSubPixelLayout, (value) {
+                        return switch (value.currentValue) {
+                          0x00 => l10n.subPixelNotDefined,
+                          0x01 => l10n.rgbVerticalStripe,
+                          0x02 => l10n.rgbHorizontalStripe,
+                          0x03 => l10n.bgrVerticalStripe,
+                          0x04 => l10n.bgrHorizontalStripe,
+                          0x05 => l10n.quadPixelRedTopLeft,
+                          0x06 => l10n.quadPixelRedBottomLeft,
+                          0x07 => l10n.deltaTriad,
+                          0x08 => l10n.mosaic,
+                          _ => "${l10n.unknown} (0x${value.currentValue.toRadixString(16).toUpperCase()})",
+                        };
+                      }),
+                      SiderListTile(handle, 0xB4, l10n.sourceTimingMode),
+                      TextListTile(handle, 0xB6, l10n.displayTechnologyType, (value) {
+                        return switch (value.currentValue) {
+                          0x01 => l10n.crtShadowMask,
+                          0x02 => l10n.crtApertureGrill,
+                          0x03 => l10n.lcdActiveMatrix,
+                          0x04 => l10n.lcos,
+                          0x05 => l10n.plasma,
+                          0x06 => l10n.oled,
+                          0x07 => l10n.el,
+                          0x08 => l10n.mem,
+                          _ => "${l10n.unknown} (0x${value.currentValue.toRadixString(16).toUpperCase()})",
+                        };
+                      }),
+                      TextListTile(handle, 0xC2, l10n.displayDescriptorLength, (value) => "${value.currentValue}"),
+                      TextListTile(handle, 0xC3, l10n.displayDescriptorToTransmit, (value) => "${value.currentValue}"),
+                      ComboBoxListTile(handle, 0xC4, l10n.enableDisplayOfDescriptor, {0x01: l10n.disabled, 0x02: l10n.enabled}, enabledValues: capabilitiesInfo?.vcpValues[0xC4]),
+                      TextListTile(handle, 0xC6, l10n.applicationEnableKey, (value) => "0x${value.currentValue.toRadixString(16).toUpperCase()}"),
+                      NumericListTile(handle, 0xCD, l10n.statusIndicators),
+                      TextListTile(handle, 0xCE, l10n.auxiliaryDisplaySize, (value) => "${value.currentValue}"),
+                      TextListTile(handle, 0xCF, l10n.auxiliaryDisplayData, (value) => "${value.currentValue}"),
+                      ComboBoxListTile(handle, 0xD0, l10n.outputSelect, {
+                        0x01: 'Analog video (R/G/B) 1',
+                        0x02: 'Analog video (R/G/B) 2',
+                        0x03: 'Digital video (TDMS) 1',
+                        0x04: 'Digital video (TDMS) 2',
+                        0x05: 'Composite video 1',
+                        0x06: 'Composite video 2',
+                        0x07: 'S-Video-1',
+                        0x08: 'S-Video-2',
+                        0x09: 'Tuner-1',
+                        0x0A: 'Tuner-2',
+                        0x0B: 'Tuner-3',
+                        0x0C: 'Component video (YPrPb/YCrCb) 1',
+                        0x0D: 'Component video (YPrPb/YCrCb) 2',
+                        0x0E: 'Component video (YPrPb/YCrCb) 3',
+                        0x0F: 'DisplayPort-1',
+                        0x10: 'DisplayPort-2',
+                        0x11: 'HDMI-1',
+                        0x12: 'HDMI-2',
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0xD0]),
+                      TextListTile(handle, 0xD2, l10n.assetTag, (value) => "${value.currentValue}"),
+                      ComboBoxListTile(handle, 0xD7, l10n.auxiliaryPowerOutput, {
+                        0x01: l10n.disableAuxiliaryPower,
+                        0x02: l10n.enableAuxiliaryPowerContinuous,
+                        0x03: l10n.enableAuxiliaryPowerDisplayActive,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0xD7]),
+                      ComboBoxListTile(handle, 0xDB, l10n.imageMode, {
+                        0x00: l10n.noEffect,
+                        0x01: l10n.fullMode,
+                        0x02: l10n.zoomMode,
+                        0x03: l10n.squeezeMode,
+                        0x04: l10n.variable,
+                      }, enabledValues: capabilitiesInfo?.vcpValues[0xDB]),
+                      NumericListTile(handle, 0xDE, l10n.scratchPad),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  SoftGroup(
-                    title: 'Miscellaneous functions',
-                    children: <Widget>[
-                      ActionListTile(handle, 0x01, 'Degauss'),
-                      NumericListTile(handle, 0x02, 'New control value'),
-                      ActionListTile(handle, 0x03, 'Soft controls'),
-                      NumericListTile(handle, 0x52, 'Last value control'),
-                      const PlaceholderListTile('Performance preserve - 0x54'),
-                      ComboBoxListTile(handle, 0x60, 'Input select', vcpInputSourceOptions, enabledValues: vcpValues[0x60]),
-                      ComboBoxListTile(handle, 0x66, 'Ambient light sensor', vcpAmbientLightSensorOptions, enabledValues: vcpValues[0x66]),
-                      const PlaceholderListTile('Remote procedure call'),
-                      const PlaceholderListTile('EDID operation - 0x78'),
-                      const PlaceholderListTile('TV channel up/down'),
-                      const PlaceholderListTile('Flat panel sub-pixel layout - 0xB2'),
-                      const PlaceholderListTile('Source timing mode - 0xB4'),
-                      TextListTile(handle, 0xB6, 'Display technology type'),
-                      const PlaceholderListTile('Display descriptor length - 0xC2'),
-                      const PlaceholderListTile('Display descriptor to transmit - 0xC3'),
-                      const PlaceholderListTile('Enable display of display descriptor - 0xC4'),
-                      const PlaceholderListTile('Application enable key - 0xC6'),
-                      const PlaceholderListTile('Display enable key - 0xC7'),
-                      const PlaceholderListTile('Status indicators - 0xCD'),
-                      const PlaceholderListTile('Auxiliary display size - 0xCE'),
-                      const PlaceholderListTile('Auxiliary display data - 0xCF'),
-                      ComboBoxListTile(handle, 0xD0, 'Output select', vcpOutputSelectOptions, enabledValues: vcpValues[0xD0]),
-                      const PlaceholderListTile('Operation mode'),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  SoftGroup(title: 'Manufacturer specific', children: _manufacturerSpecificChildren(handle)),
                 ],
               ),
             ),
@@ -306,46 +551,4 @@ class MonitorPage extends HookConsumerWidget {
       },
     );
   }
-}
-
-List<Widget> _manufacturerSpecificChildren(int handle) {
-  final items = <Widget>[];
-  for (int code = 0xE0; code <= 0xFC; code++) {
-    items.add(PlaceholderListTile('Manufacturer specific - 0x${_hex(code)}'));
-  }
-  items.add(NumericListTile(handle, 0xFD, 'Manufacturer specific'));
-  items.add(const PlaceholderListTile('Manufacturer specific - 0xFE'));
-  items.add(NumericListTile(handle, 0xFF, 'Manufacturer specific'));
-  return items;
-}
-
-String _hex(int value) => value.toRadixString(16).padLeft(2, '0').toUpperCase();
-
-String _capabilitiesStatus(AsyncValue<String> capabilities) {
-  if (capabilities.hasValue) {
-    return 'Supported';
-  }
-  if (capabilities.hasError) {
-    return 'Unavailable';
-  }
-  return 'Loading...';
-}
-
-String? _formatSupportedCodes(String? rawCapabilities) {
-  if (rawCapabilities == null) {
-    return null;
-  }
-  final Set<int> commands = CapabilitiesParser.parseCommands(rawCapabilities);
-  final Set<int> vcpCodes = CapabilitiesParser.parseVcpCodes(rawCapabilities);
-  final String commandsStr = _formatHexSet(commands);
-  final String vcpCodesStr = _formatHexSet(vcpCodes);
-  return 'cmds: $commandsStr | vcp: $vcpCodesStr';
-}
-
-String _formatHexSet(Set<int> values) {
-  if (values.isEmpty) {
-    return '';
-  }
-  final List<int> sortedValues = values.toList()..sort();
-  return sortedValues.map((value) => _hex(value)).join(' ');
 }
