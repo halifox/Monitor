@@ -43,3 +43,5 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/installer_output/PureDDC_Setup_v1.0.0.exe
+/PureDDCCI_Portable_v1.0.0.zip

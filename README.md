@@ -96,4 +96,4 @@ macOS 和 Linux 平台已有更成熟的显示器控制工具（如 macOS 的 Mo
 
 ## 许可证
 
-本项目遵循 [GPL-3.0 License]()。
+本项目遵循 [GPL-3.0 License](LICENSE)。
