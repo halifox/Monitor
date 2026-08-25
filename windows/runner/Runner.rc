@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.halifox" "\0"
-            VALUE "FileDescription", "PureDDCCI" "\0"
+            VALUE "FileDescription", "monitor" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "PureDDCCI" "\0"
+            VALUE "InternalName", "monitor" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.halifox. All rights reserved." "\0"
-            VALUE "OriginalFilename", "pureddcci.exe" "\0"
-            VALUE "ProductName", "PureDDCCI" "\0"
+            VALUE "OriginalFilename", "monitor.exe" "\0"
+            VALUE "ProductName", "monitor" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
