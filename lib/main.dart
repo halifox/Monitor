@@ -3,8 +3,8 @@ import 'package:flutter/material.dart' hide Colors;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:pureddcci/src/providers.dart';
-import 'package:pureddcci/src/widgets/monitor_page.dart';
+import 'package:monitor/src/providers.dart';
+import 'package:monitor/src/widgets/monitor_page.dart';
 import 'l10n/app_localizations.dart';
 
 void main() {
@@ -19,17 +19,19 @@ class PureDDCCIApp extends HookConsumerWidget {
     return FluentApp(
       debugShowCheckedModeBanner: false,
       title: 'PureDDCCI Control Center',
-      theme: FluentThemeData(brightness: Brightness.dark, accentColor: Colors.blue, visualDensity: VisualDensity.compact, fontFamily: 'Segoe UI'),
+      theme: FluentThemeData(
+        brightness: Brightness.dark,
+        accentColor: Colors.blue,
+        visualDensity: VisualDensity.compact,
+        fontFamily: 'Segoe UI',
+      ),
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('zh'),
-      ],
+      supportedLocales: const [Locale('en'), Locale('zh')],
       home: const HomePage(),
     );
   }
@@ -48,19 +50,40 @@ class HomePage extends HookConsumerWidget {
       final physicalHandles = ref.watch(physicalMonitorsProvider(hMonitor));
       for (final physicalHandle in physicalHandles) {
         final edidInfo = ref.watch(monitorEdidProvider(hMonitor));
-        final monitorName = edidInfo.value?.manufacturerName ?? AppLocalizations.of(context)!.unknownMonitor;
-        paneItems.add(PaneItem(icon: const Icon(Icons.monitor), title: Text(monitorName), body: MonitorPage(physicalHandle, hMonitor)));
+        final monitorName =
+            edidInfo.value?.manufacturerName ??
+            AppLocalizations.of(context)!.unknownMonitor;
+        paneItems.add(
+          PaneItem(
+            icon: const Icon(Icons.monitor),
+            title: Text(monitorName),
+            body: MonitorPage(physicalHandle, hMonitor),
+          ),
+        );
       }
       if (paneItems.length > 1) {
-        final logicalMonitorName = ref.watch(logicalMonitorNameProvider(hMonitor));
-        items.add(PaneItemExpander(initiallyExpanded: true, icon: null, title: Text(logicalMonitorName), items: paneItems));
+        final logicalMonitorName = ref.watch(
+          logicalMonitorNameProvider(hMonitor),
+        );
+        items.add(
+          PaneItemExpander(
+            initiallyExpanded: true,
+            icon: null,
+            title: Text(logicalMonitorName),
+            items: paneItems,
+          ),
+        );
       } else {
         items.addAll(paneItems);
       }
     }
 
     return NavigationView(
-      pane: NavigationPane(selected: selectedIndex.value, onChanged: (index) => selectedIndex.value = index, items: items),
+      pane: NavigationPane(
+        selected: selectedIndex.value,
+        onChanged: (index) => selectedIndex.value = index,
+        items: items,
+      ),
     );
   }
 }

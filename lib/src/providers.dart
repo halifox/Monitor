@@ -4,12 +4,12 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'package:ffi/ffi.dart';
-import 'package:pureddcci/src/pureddc/vcp_read_result.dart';
+import 'package:monitor/src/api/vcp_read_result.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'pureddc/ddc_bindings.dart';
-import 'pureddc/capabilities_info.dart';
-import 'pureddc/edid_info.dart';
+import 'api/ddc_bindings.dart';
+import 'api/capabilities_info.dart';
+import 'api/edid_info.dart';
 
 part 'providers.g.dart';
 
@@ -33,18 +33,27 @@ List<int> logicalMonitors(Ref ref) {
     ffi.Pointer<Rect> lprcMonitor,
     int dwData,
   ) {
-    debugPrint('[Provider] logicalMonitors: 发现监视器句柄 0x${hMonitor.toRadixString(16)}');
+    debugPrint(
+      '[Provider] logicalMonitors: 发现监视器句柄 0x${hMonitor.toRadixString(16)}',
+    );
     localMonitors.add(hMonitor);
     return 1;
   }, exceptionalReturn: 0);
   try {
-    final ffi.Pointer<ffi.NativeFunction<MonitorEnumProcNative>> ptr = callable.nativeFunction;
+    final ffi.Pointer<ffi.NativeFunction<MonitorEnumProcNative>> ptr =
+        callable.nativeFunction;
     final int result = EnumDisplayMonitors(0, ffi.nullptr, ptr, 0);
     if (result == 0) {
-      debugPrint('[Provider] logicalMonitors: 枚举失败, Win32 错误 ${GetLastError()}');
-      throw StateError('Failed to enumerate display monitors, Win32 error ${GetLastError()}.');
+      debugPrint(
+        '[Provider] logicalMonitors: 枚举失败, Win32 错误 ${GetLastError()}',
+      );
+      throw StateError(
+        'Failed to enumerate display monitors, Win32 error ${GetLastError()}.',
+      );
     }
-    debugPrint('[Provider] logicalMonitors: 枚举完成, 共找到 ${localMonitors.length} 个监视器');
+    debugPrint(
+      '[Provider] logicalMonitors: 枚举完成, 共找到 ${localMonitors.length} 个监视器',
+    );
   } finally {
     callable.close();
   }
@@ -66,33 +75,58 @@ List<int> logicalMonitors(Ref ref) {
 /// 异常: 如果获取失败则抛出 StateError
 @Riverpod(keepAlive: true)
 List<int> physicalMonitors(Ref ref, int hMonitor) {
-  debugPrint('[Provider] physicalMonitors: 开始获取物理监视器, hMonitor=0x${hMonitor.toRadixString(16)}');
+  debugPrint(
+    '[Provider] physicalMonitors: 开始获取物理监视器, hMonitor=0x${hMonitor.toRadixString(16)}',
+  );
   return using((arena) {
     final ffi.Pointer<ffi.Uint32> countPointer = arena<ffi.Uint32>();
-    final int countResult = GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, countPointer);
+    final int countResult = GetNumberOfPhysicalMonitorsFromHMONITOR(
+      hMonitor,
+      countPointer,
+    );
     if (countResult == 0) {
-      debugPrint('[Provider] physicalMonitors: 获取物理监视器数量失败, Win32 错误 ${GetLastError()}');
-      throw StateError('Failed to get physical monitor count, Win32 error ${GetLastError()}.');
+      debugPrint(
+        '[Provider] physicalMonitors: 获取物理监视器数量失败, Win32 错误 ${GetLastError()}',
+      );
+      throw StateError(
+        'Failed to get physical monitor count, Win32 error ${GetLastError()}.',
+      );
     }
     final int count = countPointer.value;
     debugPrint('[Provider] physicalMonitors: 物理监视器数量 = $count');
     if (count == 0) {
-      throw StateError('Monitor handle $hMonitor has no associated physical monitors.');
+      throw StateError(
+        'Monitor handle $hMonitor has no associated physical monitors.',
+      );
     }
-    final ffi.Pointer<PhysicalMonitor> physicalArray = arena<PhysicalMonitor>(count);
-    final int getResult = GetPhysicalMonitorsFromHMONITOR(hMonitor, count, physicalArray);
+    final ffi.Pointer<PhysicalMonitor> physicalArray = arena<PhysicalMonitor>(
+      count,
+    );
+    final int getResult = GetPhysicalMonitorsFromHMONITOR(
+      hMonitor,
+      count,
+      physicalArray,
+    );
     if (getResult == 0) {
-      debugPrint('[Provider] physicalMonitors: 获取物理监视器信息失败, Win32 错误 ${GetLastError()}');
-      throw StateError('Failed to get physical monitor info, Win32 error ${GetLastError()}.');
+      debugPrint(
+        '[Provider] physicalMonitors: 获取物理监视器信息失败, Win32 错误 ${GetLastError()}',
+      );
+      throw StateError(
+        'Failed to get physical monitor info, Win32 error ${GetLastError()}.',
+      );
     }
 
     final List<int> handles = <int>[];
     for (int index = 0; index < count; index++) {
       final PhysicalMonitor raw = (physicalArray + index).ref;
-      debugPrint('[Provider] physicalMonitors: 物理监视器[$index] 句柄 = 0x${raw.hPhysicalMonitor.toRadixString(16)}');
+      debugPrint(
+        '[Provider] physicalMonitors: 物理监视器[$index] 句柄 = 0x${raw.hPhysicalMonitor.toRadixString(16)}',
+      );
       handles.add(raw.hPhysicalMonitor);
     }
-    debugPrint('[Provider] physicalMonitors: 完成, 返回 ${handles.length} 个物理监视器句柄');
+    debugPrint(
+      '[Provider] physicalMonitors: 完成, 返回 ${handles.length} 个物理监视器句柄',
+    );
     return handles;
   });
 }
@@ -111,15 +145,21 @@ List<int> physicalMonitors(Ref ref, int hMonitor) {
 /// 异常: 如果获取失败则抛出 StateError
 @Riverpod(keepAlive: true)
 String logicalMonitorName(Ref ref, int hMonitor) {
-  debugPrint('[Provider] logicalMonitorName: 开始获取监视器名称, hMonitor=0x${hMonitor.toRadixString(16)}');
+  debugPrint(
+    '[Provider] logicalMonitorName: 开始获取监视器名称, hMonitor=0x${hMonitor.toRadixString(16)}',
+  );
   return using((arena) {
     final ffi.Pointer<MonitorInfoEx> monitorInfo = arena<MonitorInfoEx>();
     monitorInfo.ref.cbSize = ffi.sizeOf<MonitorInfoEx>();
 
     final int result = GetMonitorInfoW(hMonitor, monitorInfo);
     if (result == 0) {
-      debugPrint('[Provider] logicalMonitorName: 获取监视器信息失败, Win32 错误 ${GetLastError()}');
-      throw StateError('Failed to get monitor info, Win32 error ${GetLastError()}.');
+      debugPrint(
+        '[Provider] logicalMonitorName: 获取监视器信息失败, Win32 错误 ${GetLastError()}',
+      );
+      throw StateError(
+        'Failed to get monitor info, Win32 error ${GetLastError()}.',
+      );
     }
 
     final String deviceName = wcharArrayToStringN(monitorInfo.ref.szDevice, 32);
@@ -131,13 +171,26 @@ String logicalMonitorName(Ref ref, int hMonitor) {
     final ffi.Pointer<DisplayDevice> displayDevice = arena<DisplayDevice>();
     displayDevice.ref.cb = ffi.sizeOf<DisplayDevice>();
 
-    final ffi.Pointer<Utf16> deviceNamePtr = deviceName.toNativeUtf16(allocator: arena);
-    final int enumResult = EnumDisplayDevicesW(deviceNamePtr, 0, displayDevice, 0);
+    final ffi.Pointer<Utf16> deviceNamePtr = deviceName.toNativeUtf16(
+      allocator: arena,
+    );
+    final int enumResult = EnumDisplayDevicesW(
+      deviceNamePtr,
+      0,
+      displayDevice,
+      0,
+    );
     if (enumResult == 0) {
-      debugPrint('[Provider] logicalMonitorName: 枚举显示设备失败, Win32 错误 ${GetLastError()}');
-      throw StateError('Failed to enumerate display devices, Win32 error ${GetLastError()}.');
+      debugPrint(
+        '[Provider] logicalMonitorName: 枚举显示设备失败, Win32 错误 ${GetLastError()}',
+      );
+      throw StateError(
+        'Failed to enumerate display devices, Win32 error ${GetLastError()}.',
+      );
     }
-    final String displayName = wcharArrayToString(displayDevice.ref.deviceString);
+    final String displayName = wcharArrayToString(
+      displayDevice.ref.deviceString,
+    );
     debugPrint('[Provider] logicalMonitorName: 显示名称 = $displayName');
     return displayName;
   });
@@ -157,25 +210,46 @@ String logicalMonitorName(Ref ref, int hMonitor) {
 /// 异常: 如果读取失败则抛出 StateError
 @Riverpod(keepAlive: true)
 Future<CapabilitiesInfo> monitorCapabilities(Ref ref, int handle) async {
-  debugPrint('[Provider] monitorCapabilities: 开始读取 Capabilities, handle=0x${handle.toRadixString(16)}');
+  debugPrint(
+    '[Provider] monitorCapabilities: 开始读取 Capabilities, handle=0x${handle.toRadixString(16)}',
+  );
   return await Isolate.run(() {
     return using((arena) {
       final ffi.Pointer<ffi.Uint32> lengthPointer = arena<ffi.Uint32>();
-      final int lengthResult = GetCapabilitiesStringLength(handle, lengthPointer);
+      final int lengthResult = GetCapabilitiesStringLength(
+        handle,
+        lengthPointer,
+      );
       if (lengthResult == 0 || lengthPointer.value == 0) {
-        debugPrint('[Provider] monitorCapabilities: 读取 Capabilities 长度失败, Win32 错误 ${GetLastError()}');
-        throw StateError('Failed to read capabilities length, Win32 error ${GetLastError()}.');
+        debugPrint(
+          '[Provider] monitorCapabilities: 读取 Capabilities 长度失败, Win32 错误 ${GetLastError()}',
+        );
+        throw StateError(
+          'Failed to read capabilities length, Win32 error ${GetLastError()}.',
+        );
       }
       final int length = lengthPointer.value;
-      debugPrint('[Provider] monitorCapabilities: Capabilities 字符串长度 = $length');
+      debugPrint(
+        '[Provider] monitorCapabilities: Capabilities 字符串长度 = $length',
+      );
       final ffi.Pointer<ffi.Int8> buffer = arena<ffi.Int8>(length);
-      final int capabilityResult = CapabilitiesRequestAndCapabilitiesReply(handle, buffer, length);
+      final int capabilityResult = CapabilitiesRequestAndCapabilitiesReply(
+        handle,
+        buffer,
+        length,
+      );
       if (capabilityResult == 0) {
-        debugPrint('[Provider] monitorCapabilities: 读取 Capabilities 失败, Win32 错误 ${GetLastError()}');
-        throw StateError('Failed to read capabilities, Win32 error ${GetLastError()}.');
+        debugPrint(
+          '[Provider] monitorCapabilities: 读取 Capabilities 失败, Win32 错误 ${GetLastError()}',
+        );
+        throw StateError(
+          'Failed to read capabilities, Win32 error ${GetLastError()}.',
+        );
       }
       final rawString = buffer.cast<Utf8>().toDartString();
-      debugPrint('[Provider] monitorCapabilities: 读取成功, 原始字符串长度 = ${rawString.length}');
+      debugPrint(
+        '[Provider] monitorCapabilities: 读取成功, 原始字符串长度 = ${rawString.length}',
+      );
       final result = CapabilitiesInfo.parse(rawString);
       debugPrint('[Provider] monitorCapabilities: 解析完成');
       return result;
@@ -199,18 +273,32 @@ Future<CapabilitiesInfo> monitorCapabilities(Ref ref, int handle) async {
 /// 异常: 如果读取失败则抛出 StateError
 @Riverpod(keepAlive: true)
 Future<VcpReadResult> featureValue(Ref ref, int handle, int code) async {
-  debugPrint('[Provider] featureValue: 开始读取 VCP, handle=0x${handle.toRadixString(16)}, code=0x${code.toRadixString(16)}');
+  debugPrint(
+    '[Provider] featureValue: 开始读取 VCP, handle=0x${handle.toRadixString(16)}, code=0x${code.toRadixString(16)}',
+  );
   return await Isolate.run(() {
     return using((arena) {
       final ffi.Pointer<ffi.Uint32> codeType = arena<ffi.Uint32>();
       final ffi.Pointer<ffi.Uint32> currentValue = arena<ffi.Uint32>();
       final ffi.Pointer<ffi.Uint32> maximumValue = arena<ffi.Uint32>();
-      final int result = GetVCPFeatureAndVCPFeatureReply(handle, code, codeType, currentValue, maximumValue);
+      final int result = GetVCPFeatureAndVCPFeatureReply(
+        handle,
+        code,
+        codeType,
+        currentValue,
+        maximumValue,
+      );
       if (result == 0) {
-        debugPrint('[Provider] featureValue: 读取 VCP 失败, code=0x${code.toRadixString(16)}, Win32 错误 ${GetLastError()}');
-        throw StateError('Failed to read VCP 0x${hex(code)}, Win32 error ${GetLastError()}.');
+        debugPrint(
+          '[Provider] featureValue: 读取 VCP 失败, code=0x${code.toRadixString(16)}, Win32 错误 ${GetLastError()}',
+        );
+        throw StateError(
+          'Failed to read VCP 0x${hex(code)}, Win32 error ${GetLastError()}.',
+        );
       }
-      debugPrint('[Provider] featureValue: 读取成功, code=0x${code.toRadixString(16)}, current=0x${currentValue.value.toRadixString(16)}, max=0x${maximumValue.value.toRadixString(16)}, type=${codeType.value}');
+      debugPrint(
+        '[Provider] featureValue: 读取成功, code=0x${code.toRadixString(16)}, current=0x${currentValue.value.toRadixString(16)}, max=0x${maximumValue.value.toRadixString(16)}, type=${codeType.value}',
+      );
       return VcpReadResult(
         currentValue: currentValue.value,
         maximumValue: maximumValue.value,
@@ -235,14 +323,22 @@ Future<VcpReadResult> featureValue(Ref ref, int handle, int code) async {
 /// 异常: 如果设置失败则抛出 StateError
 @riverpod
 Future<void> setFeatureValue(Ref ref, int handle, int code, int value) async {
-  debugPrint('[Provider] setFeatureValue: 开始设置 VCP, handle=0x${handle.toRadixString(16)}, code=0x${code.toRadixString(16)}, value=0x${value.toRadixString(16)}');
+  debugPrint(
+    '[Provider] setFeatureValue: 开始设置 VCP, handle=0x${handle.toRadixString(16)}, code=0x${code.toRadixString(16)}, value=0x${value.toRadixString(16)}',
+  );
   await Isolate.run(() {
     final int result = SetVCPFeature(handle, code, value);
     if (result == 0) {
-      debugPrint('[Provider] setFeatureValue: 设置 VCP 失败, code=0x${code.toRadixString(16)}, Win32 错误 ${GetLastError()}');
-      throw StateError('Failed to set VCP 0x${hex(code)}, Win32 error ${GetLastError()}.');
+      debugPrint(
+        '[Provider] setFeatureValue: 设置 VCP 失败, code=0x${code.toRadixString(16)}, Win32 错误 ${GetLastError()}',
+      );
+      throw StateError(
+        'Failed to set VCP 0x${hex(code)}, Win32 error ${GetLastError()}.',
+      );
     }
-    debugPrint('[Provider] setFeatureValue: 设置成功, code=0x${code.toRadixString(16)}, value=0x${value.toRadixString(16)}');
+    debugPrint(
+      '[Provider] setFeatureValue: 设置成功, code=0x${code.toRadixString(16)}, value=0x${value.toRadixString(16)}',
+    );
   });
 }
 
@@ -258,11 +354,17 @@ Future<void> setFeatureValue(Ref ref, int handle, int code, int value) async {
 /// 异常: 如果保存失败则抛出 StateError
 @riverpod
 Future<void> saveMonitorSettings(Ref ref, int handle) async {
-  debugPrint('[Provider] saveMonitorSettings: 开始保存监视器设置, handle=0x${handle.toRadixString(16)}');
+  debugPrint(
+    '[Provider] saveMonitorSettings: 开始保存监视器设置, handle=0x${handle.toRadixString(16)}',
+  );
   final int result = SaveCurrentSettings(handle);
   if (result == 0) {
-    debugPrint('[Provider] saveMonitorSettings: 保存失败, Win32 错误 ${GetLastError()}');
-    throw StateError('Failed to save monitor settings, Win32 error ${GetLastError()}.');
+    debugPrint(
+      '[Provider] saveMonitorSettings: 保存失败, Win32 错误 ${GetLastError()}',
+    );
+    throw StateError(
+      'Failed to save monitor settings, Win32 error ${GetLastError()}.',
+    );
   }
   debugPrint('[Provider] saveMonitorSettings: 保存成功');
 }
@@ -336,7 +438,9 @@ String hex(int value) => value.toRadixString(16).padLeft(2, '0').toUpperCase();
 /// 返回值: 解析后的 EdidInfo 对象，如果读取失败则返回 null
 @Riverpod(keepAlive: true)
 Future<EdidInfo?> monitorEdid(Ref ref, int hMonitor) async {
-  debugPrint('[Provider] monitorEdid: 开始读取 EDID, hMonitor=0x${hMonitor.toRadixString(16)}');
+  debugPrint(
+    '[Provider] monitorEdid: 开始读取 EDID, hMonitor=0x${hMonitor.toRadixString(16)}',
+  );
   return await Isolate.run(() {
     final result = _readEdidFromRegistry(hMonitor);
     if (result != null) {
@@ -353,7 +457,9 @@ Future<EdidInfo?> monitorEdid(Ref ref, int hMonitor) async {
 /// 通过逻辑监视器句柄获取设备名称，然后从注册表中读取对应的 EDID 数据。
 /// EDID 数据存储在 HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\DISPLAY 下。
 EdidInfo? _readEdidFromRegistry(int hMonitor) {
-  debugPrint('[Registry] _readEdidFromRegistry: 开始从注册表读取 EDID, hMonitor=0x${hMonitor.toRadixString(16)}');
+  debugPrint(
+    '[Registry] _readEdidFromRegistry: 开始从注册表读取 EDID, hMonitor=0x${hMonitor.toRadixString(16)}',
+  );
   return using((arena) {
     // 获取监视器设备名称
     final ffi.Pointer<MonitorInfoEx> monitorInfo = arena<MonitorInfoEx>();
@@ -372,8 +478,15 @@ EdidInfo? _readEdidFromRegistry(int hMonitor) {
     final ffi.Pointer<DisplayDevice> displayDevice = arena<DisplayDevice>();
     displayDevice.ref.cb = ffi.sizeOf<DisplayDevice>();
 
-    final ffi.Pointer<Utf16> deviceNamePtr = deviceName.toNativeUtf16(allocator: arena);
-    final int enumResult = EnumDisplayDevicesW(deviceNamePtr, 0, displayDevice, 0);
+    final ffi.Pointer<Utf16> deviceNamePtr = deviceName.toNativeUtf16(
+      allocator: arena,
+    );
+    final int enumResult = EnumDisplayDevicesW(
+      deviceNamePtr,
+      0,
+      displayDevice,
+      0,
+    );
     if (enumResult == 0) {
       debugPrint('[Registry] _readEdidFromRegistry: 枚举显示设备失败');
       return null;
@@ -389,7 +502,9 @@ EdidInfo? _readEdidFromRegistry(int hMonitor) {
       return null;
     }
 
-    debugPrint('[Registry] _readEdidFromRegistry: EDID 数据读取成功, 长度 = ${edidData.length}');
+    debugPrint(
+      '[Registry] _readEdidFromRegistry: EDID 数据读取成功, 长度 = ${edidData.length}',
+    );
     return EdidInfo.parse(edidData);
   });
 }
@@ -415,7 +530,9 @@ Uint8List? _readEdidFromDeviceId(String deviceID, Arena arena) {
   final registryPath = 'SYSTEM\\CurrentControlSet\\Enum\\DISPLAY\\$monitorId';
   debugPrint('[Registry] _readEdidFromDeviceId: 注册表路径 = $registryPath');
 
-  final ffi.Pointer<Utf16> pathPtr = registryPath.toNativeUtf16(allocator: arena);
+  final ffi.Pointer<Utf16> pathPtr = registryPath.toNativeUtf16(
+    allocator: arena,
+  );
   final ffi.Pointer<ffi.IntPtr> hKey = arena<ffi.IntPtr>();
 
   // 打开注册表项
@@ -456,10 +573,18 @@ Uint8List? _readEdidFromDeviceId(String deviceID, Arena arena) {
     final subKeyPath = '$registryPath\\$subKeyNameStr\\Device Parameters';
     debugPrint('[Registry] _readEdidFromDeviceId: 子项路径 = $subKeyPath');
 
-    final ffi.Pointer<Utf16> subKeyPathPtr = subKeyPath.toNativeUtf16(allocator: arena);
+    final ffi.Pointer<Utf16> subKeyPathPtr = subKeyPath.toNativeUtf16(
+      allocator: arena,
+    );
     final ffi.Pointer<ffi.IntPtr> hSubKey = arena<ffi.IntPtr>();
 
-    status = RegOpenKeyExW(HKEY_LOCAL_MACHINE, subKeyPathPtr, 0, KEY_READ, hSubKey);
+    status = RegOpenKeyExW(
+      HKEY_LOCAL_MACHINE,
+      subKeyPathPtr,
+      0,
+      KEY_READ,
+      hSubKey,
+    );
     if (status != ERROR_SUCCESS) {
       debugPrint('[Registry] _readEdidFromDeviceId: 打开子项失败, status = $status');
       return null;
@@ -467,7 +592,9 @@ Uint8List? _readEdidFromDeviceId(String deviceID, Arena arena) {
 
     try {
       // 读取 EDID 值
-      final ffi.Pointer<Utf16> valueName = 'EDID'.toNativeUtf16(allocator: arena);
+      final ffi.Pointer<Utf16> valueName = 'EDID'.toNativeUtf16(
+        allocator: arena,
+      );
       final ffi.Pointer<ffi.Uint32> dataSize = arena<ffi.Uint32>();
       dataSize.value = 0;
 
@@ -482,11 +609,15 @@ Uint8List? _readEdidFromDeviceId(String deviceID, Arena arena) {
       );
 
       if (status != ERROR_SUCCESS || dataSize.value == 0) {
-        debugPrint('[Registry] _readEdidFromDeviceId: 查询 EDID 大小失败, status = $status, size = ${dataSize.value}');
+        debugPrint(
+          '[Registry] _readEdidFromDeviceId: 查询 EDID 大小失败, status = $status, size = ${dataSize.value}',
+        );
         return null;
       }
 
-      debugPrint('[Registry] _readEdidFromDeviceId: EDID 数据大小 = ${dataSize.value}');
+      debugPrint(
+        '[Registry] _readEdidFromDeviceId: EDID 数据大小 = ${dataSize.value}',
+      );
 
       // 分配缓冲区并读取数据
       final ffi.Pointer<ffi.Uint8> buffer = arena<ffi.Uint8>(dataSize.value);
@@ -500,7 +631,9 @@ Uint8List? _readEdidFromDeviceId(String deviceID, Arena arena) {
       );
 
       if (status != ERROR_SUCCESS) {
-        debugPrint('[Registry] _readEdidFromDeviceId: 读取 EDID 数据失败, status = $status');
+        debugPrint(
+          '[Registry] _readEdidFromDeviceId: 读取 EDID 数据失败, status = $status',
+        );
         return null;
       }
 

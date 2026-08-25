@@ -2,12 +2,18 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' show Icons, Theme;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:pureddcci/l10n/app_localizations.dart';
-import 'package:pureddcci/src/providers.dart';
-import 'package:pureddcci/src/pureddc/vcp_read_result.dart';
+import 'package:monitor/l10n/app_localizations.dart';
+import 'package:monitor/src/providers.dart';
+import 'package:monitor/src/api/vcp_read_result.dart';
 
 class StaticTextListTile<T extends Object> extends StatelessWidget {
-  const StaticTextListTile(this.title, this.asyncData, this.transform, {super.key, this.style});
+  const StaticTextListTile(
+    this.title,
+    this.asyncData,
+    this.transform, {
+    super.key,
+    this.style,
+  });
 
   final String title;
   final AsyncValue<T?> asyncData;
@@ -61,7 +67,9 @@ class SiderListTile extends HookConsumerWidget {
           min: 0,
           max: maximumValue.toDouble(),
           value: sliderValue.value.clamp(0, maximumValue.toDouble()),
-          onChanged: vcpReadResult.hasValue ? (value) => sliderValue.value = value : null,
+          onChanged: vcpReadResult.hasValue
+              ? (value) => sliderValue.value = value
+              : null,
           // TODO: also need to send the value here
           onChangeEnd: (v) async {
             final value = v.toInt();
@@ -74,7 +82,14 @@ class SiderListTile extends HookConsumerWidget {
 }
 
 class ComboBoxListTile extends HookConsumerWidget {
-  const ComboBoxListTile(this.handle, this.code, this.title, this.options, {super.key, this.enabledValues});
+  const ComboBoxListTile(
+    this.handle,
+    this.code,
+    this.title,
+    this.options, {
+    super.key,
+    this.enabledValues,
+  });
 
   final int handle;
   final int code;
@@ -99,7 +114,12 @@ class ComboBoxListTile extends HookConsumerWidget {
       leading: const Icon(Icons.tune),
       title: Text(title),
       trailing: ComboBox<int>(
-        placeholder: Text(l10n.unavailable, style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.38))),
+        placeholder: Text(
+          l10n.unavailable,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.38),
+          ),
+        ),
         value: selectedValue.value,
         onChanged: (value) async {
           if (value == null) {
@@ -109,8 +129,13 @@ class ComboBoxListTile extends HookConsumerWidget {
           await ref.read(setFeatureValueProvider(handle, code, value).future);
         },
         items: optionEntries.map((entry) {
-          final bool isEnabled = enabledValues == null || enabledValues!.contains(entry.key);
-          return ComboBoxItem<int>(value: entry.key, enabled: readResult.hasValue && isEnabled, child: Text(entry.value));
+          final bool isEnabled =
+              enabledValues == null || enabledValues!.contains(entry.key);
+          return ComboBoxItem<int>(
+            value: entry.key,
+            enabled: readResult.hasValue && isEnabled,
+            child: Text(entry.value),
+          );
         }).toList(),
       ),
     );
@@ -118,14 +143,21 @@ class ComboBoxListTile extends HookConsumerWidget {
 }
 
 class NumericListTile extends HookConsumerWidget {
-  const NumericListTile(this.handle, this.code, this.title, {super.key, this.transform = defaultTransform});
+  const NumericListTile(
+    this.handle,
+    this.code,
+    this.title, {
+    super.key,
+    this.transform = defaultTransform,
+  });
 
   final int handle;
   final int code;
   final String title;
   final String Function(VcpReadResult) transform;
 
-  static String defaultTransform(VcpReadResult value) => value.currentValue.toString();
+  static String defaultTransform(VcpReadResult value) =>
+      value.currentValue.toString();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -159,15 +191,21 @@ class NumericListTile extends HookConsumerWidget {
                       if (normalized.isEmpty) {
                         return;
                       }
-                      if (normalized.startsWith('0x') || normalized.startsWith('0X')) {
-                        value = int.tryParse(normalized.substring(2), radix: 16);
+                      if (normalized.startsWith('0x') ||
+                          normalized.startsWith('0X')) {
+                        value = int.tryParse(
+                          normalized.substring(2),
+                          radix: 16,
+                        );
                       } else {
                         value = int.tryParse(normalized);
                       }
                       if (value == null) {
                         return;
                       }
-                      await ref.read(setFeatureValueProvider(handle, code, value).future);
+                      await ref.read(
+                        setFeatureValueProvider(handle, code, value).future,
+                      );
                     }
                   : null,
               child: Text(l10n.write),
@@ -180,7 +218,13 @@ class NumericListTile extends HookConsumerWidget {
 }
 
 class ActionListTile extends HookConsumerWidget {
-  const ActionListTile(this.handle, this.code, this.title, this.options, {super.key});
+  const ActionListTile(
+    this.handle,
+    this.code,
+    this.title,
+    this.options, {
+    super.key,
+  });
 
   final int handle;
   final int code;
@@ -203,7 +247,9 @@ class ActionListTile extends HookConsumerWidget {
                 onPressed: readResult.hasValue
                     ? () async {
                         final value = item.key;
-                        await ref.read(setFeatureValueProvider(handle, code, value).future);
+                        await ref.read(
+                          setFeatureValueProvider(handle, code, value).future,
+                        );
                       }
                     : null,
                 child: Text(item.value),
@@ -217,7 +263,13 @@ class ActionListTile extends HookConsumerWidget {
 }
 
 class TextListTile extends HookConsumerWidget {
-  const TextListTile(this.handle, this.code, this.title, this.transform, {super.key});
+  const TextListTile(
+    this.handle,
+    this.code,
+    this.title,
+    this.transform, {
+    super.key,
+  });
 
   final int handle;
   final int code;
