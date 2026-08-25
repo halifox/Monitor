@@ -55,8 +55,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/halifox/PureDDCCI.git
-cd PureDDCCI
+git clone https://github.com/halifox/monitor.git
+cd monitor
 
 # 安装依赖
 flutter pub get
@@ -71,7 +71,7 @@ flutter run -d windows
 flutter build windows --release
 
 # 构建便携版
-Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath PureDDCCI_Portable_v1.0.0.zip
+Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath Monitor_Portable_v1.0.0.zip
 
 # 构建安装程序
 # 下载并安装 [Inno Setup](https://jrsoftware.org/isdl.php)
