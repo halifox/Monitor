@@ -1,32 +1,36 @@
-# PureDDCCI
+<p align="center">
+  <img src="assets/app_icon.png" 应用图标" width="128" />
+</p>
+
+# Monitor
 
 一款基于 DDC/CI 协议的显示器硬件控制工具，支持通过软件直接调节亮度、色彩、几何参数等显示器设置，支持 Windows 平台。
 
 ## 界面预览
 
 <div align="center">
-  <img src="img/1.webp" width="80%" />
+  <img src="./screenshots/1.webp" width="80%" />
 </div>
 
 <details>
 <summary>查看更多界面截图</summary>
 
 <div align="center">
-  <img src="img/2.webp" width="80%" />
+  <img src="./screenshots/2.webp" width="80%" />
   <br><br>
-  <img src="img/3.webp" width="80%" />
+  <img src="./screenshots/3.webp" width="80%" />
   <br><br>
-  <img src="img/4.webp" width="80%" />
+  <img src="./screenshots/4.webp" width="80%" />
   <br><br>
-  <img src="img/5.webp" width="80%" />
+  <img src="./screenshots/5.webp" width="80%" />
   <br><br>
-  <img src="img/6.webp" width="80%" />
+  <img src="./screenshots/6.webp" width="80%" />
   <br><br>
-  <img src="img/7.webp" width="80%" />
+  <img src="./screenshots/7.webp" width="80%" />
   <br><br>
-  <img src="img/8.webp" width="80%" />
+  <img src="./screenshots/8.webp" width="80%" />
   <br><br>
-  <img src="img/9.webp" width="80%" />
+  <img src="./screenshots/9.webp" width="80%" />
 </div>
 
 </details>
@@ -90,9 +94,6 @@ ISCC.exe ./installer.iss
 
 macOS 和 Linux 平台已有更成熟的显示器控制工具（如 macOS 的 MonitorControl、Linux 的 ddcutil 等），因此本项目专注于为 Windows 用户提供简洁易用的 DDC/CI 控制体验。
 
-## 贡献指南
-
-欢迎提交 Issue 和 Pull Request！
 
 ## 许可证
 
